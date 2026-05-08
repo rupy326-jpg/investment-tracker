@@ -365,6 +365,13 @@ input::placeholder{color:var(--txt3);}
 
 <!-- 관리 -->
 <div id="tab-manage" class="sec">
+  <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:14px;margin-bottom:12px;border:0.5px solid var(--border2);">
+    <div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:6px;">차트 내보내기</div>
+    <div style="font-size:11px;color:var(--txt2);margin-bottom:10px;line-height:1.6;">아래 버튼을 누르면 보유 종목 데이터가 클립보드에 복사됩니다. 차트 앱에 붙여넣기 하세요.</div>
+    <button class="btn btnP" style="width:100%;padding:11px;font-size:13px;border-radius:12px;" onclick="exportChart()">📋 차트 데이터 복사</button>
+    <div id="exportMsg" style="font-size:11px;color:var(--green);text-align:center;margin-top:7px;min-height:16px;"></div>
+    <a href="chart.html" style="display:block;margin-top:8px;text-align:center;font-size:12px;color:var(--blue);text-decoration:none;padding:8px;border-radius:10px;border:0.5px solid var(--border2);">📊 차트 앱으로 이동 →</a>
+  </div>
   <div class="form-card">
     <div class="form-title">매수 추가</div>
     <div class="form-grid" style="grid-template-columns:1fr 1fr;">
@@ -840,13 +847,15 @@ function buildAlerts(){
       if(!mA&&pnl<=0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도 (현재 손실)',amount:'수익분 없음',qi:`보유: ${qty}주`});
     }
     if(g==='A'){
-      if(mA)out.push({s,acctTags,type:'buy',cls:'acBuy',msg:'월봉 10이평 위 → 매월 30만원 추가 매수',amount:'₩300,000',qi:null});
+      if(mA)out.push({s,acctTags,type:'buy',cls:'acBuy',msg:'월봉 10이평 위 → 매월 50만원 추가 매수',amount:'₩500,000',qi:null});
       if(mA&&!wA&&pnl>0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 수익분의 50% 매도',amount:fmt(pnl*0.5),qi:`매도 권장 수량: 약 ${Math.max(1,Math.round(qty*0.5))}주 (전체 ${qty}주 중)`});
       if(!mA&&pnl>0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도',amount:fmt(pnl),qi:`매도 권장 수량: ${qty}주 전량`});
       if(!mA&&pnl<=0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도 (현재 손실)',amount:'수익분 없음',qi:`보유: ${qty}주`});
     }
     if(g==='B'){
       if(mA)out.push({s,acctTags,type:'buy',cls:'acBuy',msg:'월봉 10이평 위 → 매월 30만원 추가 매수',amount:'₩300,000',qi:null});
+      if(mA&&!wA&&pnl>0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 수익분 전량 매도',amount:fmt(pnl),qi:`매도 권장 수량: ${qty}주 전량`});
+      if(mA&&!wA&&pnl<=0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 수익분 전량 매도 (현재 손실)',amount:'수익분 없음',qi:`보유: ${qty}주`});
       if(!mA)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 모든 물량 매도',amount:fmt(s.curPrice*qty),qi:`매도 권장 수량: ${qty}주 전량`});
     }
     if(g==='F'){
@@ -935,7 +944,11 @@ function renderPortfolio(){
             <span class="ab ${AB[s.acct]}">${AL[s.acct]}</span>
             <span style="font-size:11px;color:var(--txt2);">평균 ${fPriceRaw(Math.round(sAvg(s)),s.acct)} · ${fN(qty)}주</span>
           </div>
-          <div><span class="pct ${r>=0?'up':'down'}" style="font-size:13px;">${fP(r)}</span><span style="font-size:11px;color:var(--txt2);margin-left:5px;">${fPriceRaw(pnl,s.acct)}</span></div>
+          <div style="text-align:right;">
+            <span class="pct ${r>=0?'up':'down'}" style="font-size:13px;">${fP(r)}</span>
+            <span style="font-size:11px;color:var(--txt2);margin-left:5px;">${fPriceRaw(pnl,s.acct)}</span>
+            <div style="font-size:10px;color:var(--txt3);">매수 ${fW(Math.round(sBuyKrw(s)))}</div>
+          </div>
         </div>
         <div class="stock-lots" id="L${s.id}">${lots}</div>
         <div class="expand-row" onclick="toggleLots('L${s.id}',this)" style="margin-top:4px;">
@@ -966,6 +979,7 @@ function renderPortfolio(){
           <div class="stock-pct ${tPct>=0?'up':'down'}">${fP(tPct)}</div>
           <div class="stock-pnl ${tPnlKrw>=0?'up':'down'}">${fW(Math.round(tPnlKrw))}</div>
           <div style="font-size:10px;color:var(--txt3);margin-top:2px;">총 ${fN(tQty)}주</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:2px;">매수 ${fW(Math.round(grpBuyKrw(grp)))}</div>
         </div>
       </div>
       ${acctRows}
@@ -1382,6 +1396,37 @@ function renderAcctTabs(){
     </button>`).join('');
 }
 function renderAll(){renderAcctTabs();renderPortfolio();renderAlerts();renderManage();renderHistory();renderProfit();}
+
+// ── 차트 내보내기 ────────────────────────────────────────
+function exportChart(){
+  const held=stocks.filter(s=>sQty(s)>0);
+  if(!held.length){document.getElementById('exportMsg').textContent='보유 종목이 없습니다.';return;}
+  const data=held.map(s=>({
+    name:s.name,
+    acct:s.acct,
+    grade:s.grade,
+    curPrice:s.curPrice,
+    qty:sQty(s),
+    avgPrice:Math.round(sAvg(s)),
+    valueKrw:Math.round(sValKrw(s)),
+    pnlKrw:Math.round(sPnlKrw(s))
+  }));
+  const payload=JSON.stringify({usdKrw,stocks:data});
+  navigator.clipboard.writeText(payload).then(()=>{
+    const el=document.getElementById('exportMsg');
+    el.textContent='✓ '+held.length+'개 종목 복사 완료! 차트 앱에 붙여넣기 하세요.';
+    setTimeout(()=>{el.textContent='';},4000);
+  }).catch(()=>{
+    // clipboard API 실패 시 textarea로 fallback
+    const ta=document.createElement('textarea');
+    ta.value=payload;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);
+    const el=document.getElementById('exportMsg');
+    el.textContent='✓ 복사 완료!';
+    setTimeout(()=>{el.textContent='';},4000);
+  });
+}
 
 // ── 계좌 순서 편집 ───────────────────────────────────────
 let dragSrc=null;
