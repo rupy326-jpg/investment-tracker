@@ -840,17 +840,49 @@ function buildAlerts(){
     const ov=isOvs(s);
     const fmt=v=>ov?fU(Math.abs(v)):fW(Math.abs(Math.round(v)));
     const acctTags=grp.map(x=>`<span class="ab ${AB[x.acct]}">${AL[x.acct]}</span>`).join(' ');
+    // 수익 중인 로트만 따로 계산
+    const profitLots=grp.flatMap(x=>x.lots.filter(l=>(x.curPrice-l.price)*l.qty>0));
+    const profitPnl=profitLots.reduce((a,l)=>{
+      const sx=grp.find(x=>x.lots.includes(l));
+      return a+(sx.curPrice-l.price)*l.qty;
+    },0);
+    const profitQtyAll=profitLots.reduce((a,l)=>a+l.qty,0);
+
     if(g==='S'){
       if(mA&&wA)out.push({s,acctTags,type:'buy',cls:'acBuy',msg:'월봉 10이평 위 + 주봉 10이평 위 → 매주 30만원 추가 매수',amount:'₩300,000',qi:null});
-      if(mA&&!wA&&pnl>0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 수익분의 30% 매도',amount:fmt(pnl*0.3),qi:`매도 권장 수량: 약 ${Math.max(1,Math.round(qty*0.3))}주 (전체 ${qty}주 중)`});
-      if(!mA&&pnl>0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도',amount:fmt(pnl),qi:`매도 권장 수량: ${qty}주 전량`});
-      if(!mA&&pnl<=0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도 (현재 손실)',amount:'수익분 없음',qi:`보유: ${qty}주`});
+      if(mA&&!wA){
+        if(profitQtyAll>0){
+          const sellQty30=Math.max(1,Math.round(profitQtyAll*0.3));
+          out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 수익분의 30% 매도',amount:fmt(profitPnl*0.3),qi:`수익 로트 ${profitQtyAll}주 중 ${sellQty30}주 매도 권장 (전체 보유 ${qty}주)`});
+        } else {
+          out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 (수익 로트 없음 — 매도 조건 미충족)',amount:'수익분 없음',qi:`보유: ${qty}주`});
+        }
+      }
+      if(!mA){
+        if(profitQtyAll>0){
+          out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도',amount:fmt(profitPnl),qi:`수익 로트 ${profitQtyAll}주 전량 매도 권장 (전체 보유 ${qty}주)`});
+        } else {
+          out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도 (수익 로트 없음)',amount:'수익분 없음',qi:`보유: ${qty}주`});
+        }
+      }
     }
     if(g==='A'){
       if(mA&&wA)out.push({s,acctTags,type:'buy',cls:'acBuy',msg:'월봉 10이평 위 + 주봉 10이평 위 → 매월 50만원 추가 매수',amount:'₩500,000',qi:null});
-      if(mA&&!wA&&pnl>0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 수익분의 50% 매도',amount:fmt(pnl*0.5),qi:`매도 권장 수량: 약 ${Math.max(1,Math.round(qty*0.5))}주 (전체 ${qty}주 중)`});
-      if(!mA&&pnl>0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도',amount:fmt(pnl),qi:`매도 권장 수량: ${qty}주 전량`});
-      if(!mA&&pnl<=0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도 (현재 손실)',amount:'수익분 없음',qi:`보유: ${qty}주`});
+      if(mA&&!wA){
+        if(profitQtyAll>0){
+          const sellQty50=Math.max(1,Math.round(profitQtyAll*0.5));
+          out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 수익분의 50% 매도',amount:fmt(profitPnl*0.5),qi:`수익 로트 ${profitQtyAll}주 중 ${sellQty50}주 매도 권장 (전체 보유 ${qty}주)`});
+        } else {
+          out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 (수익 로트 없음 — 매도 조건 미충족)',amount:'수익분 없음',qi:`보유: ${qty}주`});
+        }
+      }
+      if(!mA){
+        if(profitQtyAll>0){
+          out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도',amount:fmt(profitPnl),qi:`수익 로트 ${profitQtyAll}주 전량 매도 권장 (전체 보유 ${qty}주)`});
+        } else {
+          out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도 (수익 로트 없음)',amount:'수익분 없음',qi:`보유: ${qty}주`});
+        }
+      }
     }
     if(g==='B'){
       if(mA&&wA)out.push({s,acctTags,type:'buy',cls:'acBuy',msg:'월봉 10이평 위 + 주봉 10이평 위 → 매월 30만원 추가 매수',amount:'₩300,000',qi:null});
