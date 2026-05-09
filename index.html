@@ -847,19 +847,19 @@ function buildAlerts(){
       if(!mA&&pnl<=0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도 (현재 손실)',amount:'수익분 없음',qi:`보유: ${qty}주`});
     }
     if(g==='A'){
-      if(mA)out.push({s,acctTags,type:'buy',cls:'acBuy',msg:'월봉 10이평 위 → 매월 50만원 추가 매수',amount:'₩500,000',qi:null});
+      if(mA&&wA)out.push({s,acctTags,type:'buy',cls:'acBuy',msg:'월봉 10이평 위 + 주봉 10이평 위 → 매월 50만원 추가 매수',amount:'₩500,000',qi:null});
       if(mA&&!wA&&pnl>0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 수익분의 50% 매도',amount:fmt(pnl*0.5),qi:`매도 권장 수량: 약 ${Math.max(1,Math.round(qty*0.5))}주 (전체 ${qty}주 중)`});
       if(!mA&&pnl>0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도',amount:fmt(pnl),qi:`매도 권장 수량: ${qty}주 전량`});
       if(!mA&&pnl<=0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 수익분 전량 매도 (현재 손실)',amount:'수익분 없음',qi:`보유: ${qty}주`});
     }
     if(g==='B'){
-      if(mA)out.push({s,acctTags,type:'buy',cls:'acBuy',msg:'월봉 10이평 위 → 매월 30만원 추가 매수',amount:'₩300,000',qi:null});
+      if(mA&&wA)out.push({s,acctTags,type:'buy',cls:'acBuy',msg:'월봉 10이평 위 + 주봉 10이평 위 → 매월 30만원 추가 매수',amount:'₩300,000',qi:null});
       if(mA&&!wA&&pnl>0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 수익분 전량 매도',amount:fmt(pnl),qi:`매도 권장 수량: ${qty}주 전량`});
       if(mA&&!wA&&pnl<=0)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 수익분 전량 매도 (현재 손실)',amount:'수익분 없음',qi:`보유: ${qty}주`});
       if(!mA)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 모든 물량 매도',amount:fmt(s.curPrice*qty),qi:`매도 권장 수량: ${qty}주 전량`});
     }
     if(g==='F'){
-      if(mA)out.push({s,acctTags,type:'buy',cls:'acWatch',msg:'월봉 10이평 위 → 매월 30만원 매수 (전주봉 상승률 -50% 이하 시 보류)',amount:'₩300,000',qi:null});
+      if(mA&&wA)out.push({s,acctTags,type:'buy',cls:'acWatch',msg:'월봉 10이평 위 + 주봉 10이평 위 → 매월 30만원 매수 (전주봉 상승률 -50% 이하 시 보류)',amount:'₩300,000',qi:null});
       if(mA&&!wA)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'주봉 10이평 이탈 → 모든 물량 매도',amount:fmt(s.curPrice*qty),qi:`매도 권장 수량: ${qty}주 전량`});
       if(!mA)out.push({s,acctTags,type:'sell',cls:'acSell',msg:'월봉 10이평 이탈 → 모든 물량 매도 (재진입 시 100만원부터)',amount:fmt(s.curPrice*qty),qi:`매도 권장 수량: ${qty}주 전량`});
     }
