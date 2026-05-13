@@ -373,7 +373,7 @@ input::placeholder{color:var(--txt3);}
     <div style="font-size:11px;color:var(--txt2);margin-bottom:10px;line-height:1.6;">아래 버튼을 누르면 보유 종목 데이터가 클립보드에 복사됩니다. 차트 앱에 붙여넣기 하세요.</div>
     <button class="btn btnP" style="width:100%;padding:11px;font-size:13px;border-radius:12px;" onclick="exportChart()">📋 차트 데이터 복사</button>
     <div id="exportMsg" style="font-size:11px;color:var(--green);text-align:center;margin-top:7px;min-height:16px;"></div>
-    <a href="chart.html" style="display:block;margin-top:8px;text-align:center;font-size:12px;color:var(--blue);text-decoration:none;padding:8px;border-radius:10px;border:0.5px solid var(--border2);">📊 차트 앱으로 이동 →</a>
+    <button class="btn" onclick="goChart()" style="display:block;width:100%;margin-top:8px;font-size:12px;color:var(--blue);border-color:var(--blue);padding:8px;border-radius:10px;">📊 차트 앱으로 이동 →</button>
   </div>
   <div class="form-card">
     <div class="form-title">매수 추가</div>
@@ -1447,20 +1447,36 @@ function exportChart(){
     pnlKrw:Math.round(sPnlKrw(s))
   }));
   const payload=JSON.stringify({usdKrw,stocks:data});
-  navigator.clipboard.writeText(payload).then(()=>{
+  // localStorage에 저장 (chart.html 자동 연동)
+  localStorage.setItem('pt_chartData', payload);
+  // 클립보드에도 복사
+  const showMsg=(txt)=>{
     const el=document.getElementById('exportMsg');
-    el.textContent='✓ '+held.length+'개 종목 복사 완료! 차트 앱에 붙여넣기 하세요.';
+    el.textContent=txt;
     setTimeout(()=>{el.textContent='';},4000);
+  };
+  navigator.clipboard.writeText(payload).then(()=>{
+    showMsg('✓ '+held.length+'개 종목 저장 완료! 차트 앱에서 자동으로 불러옵니다.');
   }).catch(()=>{
-    // clipboard API 실패 시 textarea로 fallback
     const ta=document.createElement('textarea');
     ta.value=payload;ta.style.position='fixed';ta.style.opacity='0';
     document.body.appendChild(ta);ta.select();document.execCommand('copy');
     document.body.removeChild(ta);
-    const el=document.getElementById('exportMsg');
-    el.textContent='✓ 복사 완료!';
-    setTimeout(()=>{el.textContent='';},4000);
+    showMsg('✓ 저장 완료! 차트 앱에서 자동으로 불러옵니다.');
   });
+}
+
+function goChart(){
+  const held=stocks.filter(s=>sQty(s)>0);
+  if(held.length){
+    const data=held.map(s=>({
+      name:s.name,acct:s.acct,grade:s.grade,curPrice:s.curPrice,
+      qty:sQty(s),avgPrice:Math.round(sAvg(s)),
+      valueKrw:Math.round(sValKrw(s)),pnlKrw:Math.round(sPnlKrw(s))
+    }));
+    localStorage.setItem('pt_chartData',JSON.stringify({usdKrw,stocks:data}));
+  }
+  window.location.href='chart.html';
 }
 
 // ── 계좌 순서 편집 ───────────────────────────────────────
