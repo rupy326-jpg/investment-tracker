@@ -412,6 +412,22 @@ input::placeholder{color:var(--txt3);}
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="mTitle" id="pmTitle">현재가 / 이평선 수정</div>
+    <div class="mrow"><div class="fl">등급</div>
+      <div style="display:flex;gap:7px;margin-top:6px;">
+        <button class="pm-grade-btn" data-grade="S" onclick="selectPmGrade('S')" style="flex:1;padding:9px 4px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <span style="width:22px;height:22px;border-radius:5px;background:var(--purple-dim);color:var(--purple-txt);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">S</span>
+        </button>
+        <button class="pm-grade-btn" data-grade="A" onclick="selectPmGrade('A')" style="flex:1;padding:9px 4px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <span style="width:22px;height:22px;border-radius:5px;background:var(--green-dim);color:var(--green-txt);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">A</span>
+        </button>
+        <button class="pm-grade-btn" data-grade="B" onclick="selectPmGrade('B')" style="flex:1;padding:9px 4px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <span style="width:22px;height:22px;border-radius:5px;background:var(--amber-dim);color:var(--amber-txt);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">B</span>
+        </button>
+        <button class="pm-grade-btn" data-grade="F" onclick="selectPmGrade('F')" style="flex:1;padding:9px 4px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <span style="width:22px;height:22px;border-radius:5px;background:var(--red-dim);color:var(--red-txt);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">F</span>
+        </button>
+      </div>
+    </div>
     <div class="mrow"><div class="fl">주봉 10이평</div><select id="pmWma" style="margin-top:5px;"><option value="above">위 (이평선 위)</option><option value="below">아래 (이평선 아래)</option></select></div>
     <div class="mrow"><div class="fl">월봉 10이평</div><select id="pmMma" style="margin-top:5px;"><option value="above">위 (이평선 위)</option><option value="below">아래 (이평선 아래)</option></select></div>
     <div class="mrow"><div class="fl" id="pmPriceLbl">현재가 (₩)</div><input id="pmPrice" type="number" style="margin-top:5px;"/></div>
@@ -1289,11 +1305,17 @@ function openPrice(sid){
   activePriceSid=sid;
   const s=stocks.find(x=>x.id===sid);
   const ov=isOvs(s);
-  document.getElementById('pmTitle').textContent=s.name+' — 현재가/이평선 수정';
+  document.getElementById('pmTitle').textContent=s.name+' — 현재가/이평선/등급 수정';
   document.getElementById('pmPriceLbl').textContent=ov?'현재가 ($)':'현재가 (₩)';
   document.getElementById('pmPrice').value=s.curPrice;
   document.getElementById('pmWma').value=s.weekMA;
   document.getElementById('pmMma').value=s.monthMA;
+  // 등급 버튼 초기화
+  document.querySelectorAll('.pm-grade-btn').forEach(btn=>{
+    const isSelected=btn.dataset.grade===s.grade;
+    btn.style.borderColor=isSelected?'var(--blue)':'var(--border2)';
+    btn.style.opacity=isSelected?'1':'0.55';
+  });
   const hint=document.getElementById('pmKrwHint');
   if(ov){
     hint.style.display='block';
@@ -1312,17 +1334,27 @@ function openPrice(sid){
   }
   document.getElementById('priceModal').classList.add('open');
 }
+function selectPmGrade(grade){
+  document.querySelectorAll('.pm-grade-btn').forEach(btn=>{
+    const isSelected=btn.dataset.grade===grade;
+    btn.style.borderColor=isSelected?'var(--blue)':'var(--border2)';
+    btn.style.opacity=isSelected?'1':'0.55';
+  });
+}
 function savePriceModal(){
   const s=stocks.find(x=>x.id===activePriceSid);
   const p=parseFloat(document.getElementById('pmPrice').value);
   const wma=document.getElementById('pmWma').value;
   const mma=document.getElementById('pmMma').value;
-  // 동일 종목명 전체에 현재가 + 이평선 모두 동기화
+  const selectedGradeBtn=document.querySelector('.pm-grade-btn[style*="var(--blue)"]');
+  const newGrade=selectedGradeBtn?selectedGradeBtn.dataset.grade:s.grade;
+  // 동일 종목명 전체에 현재가 + 이평선 + 등급 동기화
   const sameNameStocks=stocks.filter(x=>x.name===s.name);
   sameNameStocks.forEach(x=>{
     if(!isNaN(p)&&p>0) x.curPrice=p;
     x.weekMA=wma;
     x.monthMA=mma;
+    x.grade=newGrade;
   });
   closeModal('priceModal');save();renderAll();
 }
