@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>포트폴리오</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -373,7 +370,7 @@ input::placeholder{color:var(--txt3);}
     <div style="font-size:11px;color:var(--txt2);margin-bottom:10px;line-height:1.6;">아래 버튼을 누르면 보유 종목 데이터가 클립보드에 복사됩니다. 차트 앱에 붙여넣기 하세요.</div>
     <button class="btn btnP" style="width:100%;padding:11px;font-size:13px;border-radius:12px;" onclick="exportChart()">📋 차트 데이터 복사</button>
     <div id="exportMsg" style="font-size:11px;color:var(--green);text-align:center;margin-top:7px;min-height:16px;"></div>
-    <button class="btn" onclick="goChart()" style="display:block;width:100%;margin-top:8px;font-size:12px;color:var(--blue);border-color:var(--blue);padding:8px;border-radius:10px;">📊 차트 앱으로 이동 →</button>
+    <a href="chart.html" style="display:block;margin-top:8px;text-align:center;font-size:12px;color:var(--blue);text-decoration:none;padding:8px;border-radius:10px;border:0.5px solid var(--border2);">📊 차트 앱으로 이동 →</a>
   </div>
   <div class="form-card">
     <div class="form-title">매수 추가</div>
@@ -474,6 +471,38 @@ input::placeholder{color:var(--txt3);}
     <div class="mBtns">
       <button class="btn" onclick="closeModal('editLotModal')">취소</button>
       <button class="btn btnP" onclick="execEditLot()">수정 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 등급 일괄변경 모달 -->
+<div class="overlay" id="editGradeModal" onclick="if(event.target===this)closeModal('editGradeModal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="mTitle">등급 변경</div>
+    <div style="background:var(--bg3);border-radius:10px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:var(--txt2);" id="egInfo"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <button class="eg-grade-btn" data-grade="S" onclick="selectEgGrade('S')" style="padding:16px;border-radius:14px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <span style="width:28px;height:28px;border-radius:7px;background:var(--purple-dim);color:var(--purple-txt);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">S</span>
+        <span style="font-size:10px;color:var(--txt2);">매주 30만원</span>
+      </button>
+      <button class="eg-grade-btn" data-grade="A" onclick="selectEgGrade('A')" style="padding:16px;border-radius:14px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <span style="width:28px;height:28px;border-radius:7px;background:var(--green-dim);color:var(--green-txt);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">A</span>
+        <span style="font-size:10px;color:var(--txt2);">매월 50만원</span>
+      </button>
+      <button class="eg-grade-btn" data-grade="B" onclick="selectEgGrade('B')" style="padding:16px;border-radius:14px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <span style="width:28px;height:28px;border-radius:7px;background:var(--amber-dim);color:var(--amber-txt);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">B</span>
+        <span style="font-size:10px;color:var(--txt2);">매월 30만원</span>
+      </button>
+      <button class="eg-grade-btn" data-grade="F" onclick="selectEgGrade('F')" style="padding:16px;border-radius:14px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <span style="width:28px;height:28px;border-radius:7px;background:var(--red-dim);color:var(--red-txt);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">F</span>
+        <span style="font-size:10px;color:var(--txt2);">즉시 전량매도</span>
+      </button>
+    </div>
+    <div style="font-size:11px;color:var(--amber);margin-bottom:14px;">⚠️ 동일 종목명의 모든 계좌 등급이 함께 변경됩니다</div>
+    <div class="mBtns">
+      <button class="btn" onclick="closeModal('editGradeModal')">취소</button>
+      <button class="btn btnP" onclick="execEditGrade()">변경 저장</button>
     </div>
   </div>
 </div>
@@ -1154,6 +1183,7 @@ function renderManage(){
         </div>
         <div style="display:flex;gap:5px;">
           <button class="btn btnSm" style="color:var(--amber);border-color:var(--amber);font-size:10px;" onclick="openEditName('${s.name.replace(/'/g,"\\'")}')">이름</button>
+          <button class="btn btnSm" style="color:var(--purple-txt);border-color:var(--purple-txt);font-size:10px;" onclick="openEditGrade('${s.name.replace(/'/g,"\\'")}')">등급</button>
           <button class="btn btnSm" style="color:var(--blue);border-color:var(--blue);" onclick="openPrice(${s.id})">가격</button>
         </div>
       </div>
@@ -1447,36 +1477,20 @@ function exportChart(){
     pnlKrw:Math.round(sPnlKrw(s))
   }));
   const payload=JSON.stringify({usdKrw,stocks:data});
-  // localStorage에 저장 (chart.html 자동 연동)
-  localStorage.setItem('pt_chartData', payload);
-  // 클립보드에도 복사
-  const showMsg=(txt)=>{
-    const el=document.getElementById('exportMsg');
-    el.textContent=txt;
-    setTimeout(()=>{el.textContent='';},4000);
-  };
   navigator.clipboard.writeText(payload).then(()=>{
-    showMsg('✓ '+held.length+'개 종목 저장 완료! 차트 앱에서 자동으로 불러옵니다.');
+    const el=document.getElementById('exportMsg');
+    el.textContent='✓ '+held.length+'개 종목 복사 완료! 차트 앱에 붙여넣기 하세요.';
+    setTimeout(()=>{el.textContent='';},4000);
   }).catch(()=>{
+    // clipboard API 실패 시 textarea로 fallback
     const ta=document.createElement('textarea');
     ta.value=payload;ta.style.position='fixed';ta.style.opacity='0';
     document.body.appendChild(ta);ta.select();document.execCommand('copy');
     document.body.removeChild(ta);
-    showMsg('✓ 저장 완료! 차트 앱에서 자동으로 불러옵니다.');
+    const el=document.getElementById('exportMsg');
+    el.textContent='✓ 복사 완료!';
+    setTimeout(()=>{el.textContent='';},4000);
   });
-}
-
-function goChart(){
-  const held=stocks.filter(s=>sQty(s)>0);
-  if(held.length){
-    const data=held.map(s=>({
-      name:s.name,acct:s.acct,grade:s.grade,curPrice:s.curPrice,
-      qty:sQty(s),avgPrice:Math.round(sAvg(s)),
-      valueKrw:Math.round(sValKrw(s)),pnlKrw:Math.round(sPnlKrw(s))
-    }));
-    localStorage.setItem('pt_chartData',JSON.stringify({usdKrw,stocks:data}));
-  }
-  window.location.href='chart.html';
 }
 
 // ── 계좌 순서 편집 ───────────────────────────────────────
@@ -1513,6 +1527,44 @@ async function saveOrder(){
   try{ await sbFetch('settings?on_conflict=key','POST',[{key:'acctOrder',value:JSON.stringify(acctOrder)}]); }catch(e){}
   renderAcctTabs();
   toggleOrderPanel();
+}
+
+// ── 등급 일괄변경 ────────────────────────────────────────
+let activeEditGradeName=null, selectedEgGrade=null;
+function openEditGrade(name){
+  activeEditGradeName=name;
+  selectedEgGrade=null;
+  const sameStocks=stocks.filter(x=>x.name===name);
+  const curGrade=sameStocks[0]?.grade||'B';
+  document.getElementById('egInfo').textContent=
+    `"${name}" · ${sameStocks.map(x=>AL[x.acct]).join(', ')} · 현재 등급: ${curGrade}`;
+  // 버튼 초기 상태 리셋
+  document.querySelectorAll('.eg-grade-btn').forEach(btn=>{
+    btn.style.borderColor='var(--border2)';
+    btn.style.opacity='1';
+  });
+  // 현재 등급 버튼 하이라이트
+  const curBtn=document.querySelector(`.eg-grade-btn[data-grade="${curGrade}"]`);
+  if(curBtn) curBtn.style.borderColor='var(--blue)';
+  selectedEgGrade=curGrade;
+  document.getElementById('editGradeModal').classList.add('open');
+}
+function selectEgGrade(grade){
+  selectedEgGrade=grade;
+  document.querySelectorAll('.eg-grade-btn').forEach(btn=>{
+    const isSelected=btn.dataset.grade===grade;
+    btn.style.borderColor=isSelected?'var(--blue)':'var(--border2)';
+    btn.style.opacity=isSelected?'1':'0.6';
+  });
+}
+async function execEditGrade(){
+  if(!selectedEgGrade||!activeEditGradeName){closeModal('editGradeModal');return;}
+  stocks.forEach(s=>{
+    if(s.name===activeEditGradeName) s.grade=selectedEgGrade;
+  });
+  closeModal('editGradeModal');
+  await save();
+  renderAll();
 }
 
 // ── 매매 이력 삭제 ───────────────────────────────────────
