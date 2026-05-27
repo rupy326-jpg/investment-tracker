@@ -290,28 +290,34 @@ function renderDrillItems(containerId,stocks,totalVal){
 }
 
 function renderAll(){
-  const totalVal=stocks.reduce((a,s)=>a+s.valueKrw,0);
+  const totalStockVal=stocks.reduce((a,s)=>a+s.valueKrw,0);
+  const totalCash=Object.keys(cashMap).reduce((a,k)=>a+cashKrw(k),0);
+  const totalVal=totalStockVal+totalCash;
   const totalPnl=stocks.reduce((a,s)=>a+s.pnlKrw,0);
-  const totalBuy=totalVal-totalPnl;
+  const totalBuy=totalStockVal-totalPnl;
   const pct=totalBuy?totalPnl/totalBuy*100:0;
   const pc=totalPnl>=0?'var(--green)':'var(--red)';
 
   // 메트릭
   document.getElementById('metrics').innerHTML=`
-    <div class="mc"><div class="mc-l">총 평가금액</div><div class="mc-v" style="font-size:16px;">${fmtWon(totalVal)}원</div></div>
+    <div class="mc"><div class="mc-l">총 평가금액</div><div class="mc-v" style="font-size:16px;">${fmtWon(totalVal)}원</div>${totalCash?`<div class="mc-s">현금 ${fmtWon(totalCash)}원 포함</div>`:''}</div>
     <div class="mc"><div class="mc-l">평가손익</div><div class="mc-v" style="color:${pc};font-size:16px;">${fmtWon(totalPnl)}원</div></div>
     <div class="mc"><div class="mc-l">수익률</div><div class="mc-v" style="color:${pc}">${fP(pct)}</div></div>
     <div class="mc"><div class="mc-l">보유 종목</div><div class="mc-v">${stocks.length}<span style="font-size:13px;font-weight:400;color:var(--txt2);">종목</span></div></div>`;
   document.getElementById('importSummary').style.display='block';
 
-  // 미니 차트 (가져오기 탭)
+  // 종목+현금 데이터 (종목별 탭용)
   const nameMap={};
   stocks.forEach(s=>{if(!nameMap[s.name])nameMap[s.name]={name:s.name,val:0};nameMap[s.name].val+=s.valueKrw;});
   const nameData=Object.values(nameMap).sort((a,b)=>b.val-a.val).map((d,i)=>({...d,color:COLORS[i%COLORS.length]}));
+  // 현금 항목 추가
+  if(totalCash>0) nameData.push({name:'현금',val:totalCash,color:'#55556a'});
+
+  // 미니 차트 (가져오기 탭) — 현금 포함
   mkChart('miniChart',nameData);
   document.getElementById('miniVal').textContent=fmtWon(totalVal)+'원';
 
-  // 종목별
+  // 종목별 — 현금 포함
   document.getElementById('stockEmpty').style.display='none';
   document.getElementById('stockContent').style.display='block';
   mkChart('stockChart',nameData);
