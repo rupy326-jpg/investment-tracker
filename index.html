@@ -372,6 +372,16 @@ input::placeholder{color:var(--txt3);}
     <div id="exportMsg" style="font-size:11px;color:var(--green);text-align:center;margin-top:7px;min-height:16px;"></div>
     <a href="chart.html" style="display:block;margin-top:8px;text-align:center;font-size:12px;color:var(--blue);text-decoration:none;padding:8px;border-radius:10px;border:0.5px solid var(--border2);">📊 차트 앱으로 이동 →</a>
   </div>
+
+  <!-- 현금 관리 -->
+  <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:14px;margin-bottom:12px;border:0.5px solid var(--border2);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:700;color:var(--txt);">💰 계좌별 현금</div>
+      <div style="font-size:11px;color:var(--txt3);" id="cashTotal">합계 ₩0</div>
+    </div>
+    <div id="cashInputs"></div>
+    <button class="btn btnP" style="width:100%;padding:10px;font-size:13px;border-radius:12px;margin-top:8px;" onclick="saveCash()">현금 저장</button>
+  </div>
   <div class="form-card">
     <div class="form-title">매수 추가</div>
     <div class="form-grid" style="grid-template-columns:1fr 1fr;">
@@ -569,6 +579,8 @@ let gFilter='all',acctFilter='all',alertFilter='all',alertTypeFilter='all';
 let histYear=null,profitYear=null;
 let activePriceSid=null,activeSellKey=null,activeDelKey=null;
 let usdKrw=1380,fxSource='manual';
+// 계좌별 현금 (원화)
+let cashMap={normal:0,overseas:0,isa:0,irp:0,pension:0};
 
 const AL={normal:'일반',overseas:'해외',isa:'ISA',irp:'IRP',pension:'연금'};
 const AD={all:'d-all',normal:'d-normal',overseas:'d-overseas',isa:'d-isa',irp:'d-irp',pension:'d-pension'};
@@ -779,6 +791,9 @@ async function save(){
     if(tRows.length) await sbFetch('trades?on_conflict=id','POST',tRows);
     // ids 저장
     await sbFetch('settings?on_conflict=key','POST',[{key:'ids',value:JSON.stringify({nextSid,nextTid,nextLid})}]);
+    // 현금 저장
+    await sbFetch('settings?on_conflict=key','POST',[{key:'cashMap',value:JSON.stringify(cashMap)}]);
+    localStorage.setItem('pt_cashMap',JSON.stringify(cashMap));
     document.getElementById('lastUp').textContent='저장됨 '+today();
     localStorage.setItem('pt_lastup',today());
   }catch(e){
@@ -814,6 +829,9 @@ async function load(){
     }
     const idsRow=Array.isArray(sets)?sets.find(x=>x.key==='ids'):null;
     const orderRow=Array.isArray(sets)?sets.find(x=>x.key==='acctOrder'):null;
+    const cashRow=Array.isArray(sets)?sets.find(x=>x.key==='cashMap'):null;
+    if(cashRow) cashMap=JSON.parse(cashRow.value);
+    else{ const lc=localStorage.getItem('pt_cashMap'); if(lc) cashMap=JSON.parse(lc); }
     if(orderRow) acctOrder=JSON.parse(orderRow.value);
     else{ const lo=localStorage.getItem('pt_acctOrder'); if(lo) acctOrder=JSON.parse(lo); }
     if(idsRow){const o=JSON.parse(idsRow.value);nextSid=o.nextSid;nextTid=o.nextTid;nextLid=o.nextLid;}
@@ -953,11 +971,15 @@ function renderSummary(){
   const tPnl=held.reduce((a,s)=>a+sPnlKrw(s),0);
   const tBuy=held.reduce((a,s)=>a+sBuyKrw(s),0);
   const tVal=held.reduce((a,s)=>a+sValKrw(s),0);
+  const tCash=acctFilter==='all'
+    ? acctOrder.reduce((a,k)=>a+cashKrw(k),0)
+    : cashKrw(acctFilter);
+  const tTotal=tVal+tCash;
   const tR=tBuy?tPnl/tBuy*100:0;
   const alts=buildAlerts();
   // 히어로
-  document.getElementById('heroVal').textContent=fW(tVal);
-  document.getElementById('heroSub').innerHTML=`<span class="${tPnl>=0?'up':'down'}" style="font-weight:700;">${fP(tR)}</span> <span style="color:var(--txt2);font-size:12px;">${fW(tPnl)}</span>`;
+  document.getElementById('heroVal').textContent=fW(tTotal);
+  document.getElementById('heroSub').innerHTML=`<span class="${tPnl>=0?'up':'down'}" style="font-weight:700;">${fP(tR)}</span> <span style="color:var(--txt2);font-size:12px;">${fW(tPnl)}</span>${tCash>0?` <span style="color:var(--txt3);font-size:11px;">현금 ${fW(tCash)}</span>`:''}`;
   // 요약 그리드
   document.getElementById('sumGrid').innerHTML=`
     <div class="mc"><div class="mc-l">평가손익</div><div class="mc-v ${tPnl>=0?'up':'down'}">${fW(tPnl)}</div></div>
@@ -967,16 +989,18 @@ function renderSummary(){
   if(acctFilter!=='all'){ce.innerHTML='';return;}
   const cards=acctOrder.map(ac=>{
     const as=stocks.filter(s=>sQty(s)>0&&s.acct===ac);
-    if(!as.length)return '';
+    const acCash=cashKrw(ac);
+    if(!as.length&&!acCash)return '';
     const aVal=as.reduce((a,s)=>a+sValKrw(s),0);
     const aPnl=as.reduce((a,s)=>a+sPnlKrw(s),0);
     const aBuy=as.reduce((a,s)=>a+sBuyKrw(s),0);
     const aR=aBuy?aPnl/aBuy*100:0;
     const aValUsd=ac==='overseas'?as.reduce((a,s)=>a+s.curPrice*sQty(s),0):null;
+    const cashUsdVal=ac==='overseas'&&cashMap[ac]? (typeof cashMap[ac]==='object'? cashMap[ac].usd : 0) : 0;
     return `<div class="acct-card">
       <div class="acct-card-hd"><span class="a-dot ${AD[ac]}" style="width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;"></span>${AL[ac]}</div>
-      <div class="acct-card-val">${fW(aVal)}</div>
-      ${ac==='overseas'?`<div class="acct-card-sub">${fU(aValUsd)}</div>`:''}
+      <div class="acct-card-val">${fW(aVal+acCash)}</div>
+      ${ac==='overseas'&&aValUsd?`<div class="acct-card-sub">${fU(aValUsd)}</div>`:''}
       <div class="acct-card-row">
         <span class="acct-card-key">손익</span>
         <span class="acct-card-pnl ${aPnl>=0?'up':'down'}">${fW(aPnl)}</span>
@@ -985,6 +1009,10 @@ function renderSummary(){
         <span class="acct-card-key">수익률</span>
         <span class="acct-card-pnl ${aR>=0?'up':'down'}">${fP(aR)}</span>
       </div>
+      ${acCash>0?`<div class="acct-card-row">
+        <span class="acct-card-key">현금</span>
+        <span class="acct-card-pnl" style="color:var(--txt2);">${ac==='overseas'&&cashUsdVal? '$'+cashUsdVal.toFixed(2)+' ('+fW(acCash)+')' : fW(acCash)}</span>
+      </div>`:''}
     </div>`;
   }).filter(Boolean);
   ce.innerHTML=cards.length?'<div class="acct-cards">'+cards.join('')+'</div>':'';
@@ -1186,6 +1214,7 @@ function renderProfit(){
 }
 
 function renderManage(){
+  renderCashInputs();
   const el=document.getElementById('manageBody');
   const src=acctFilter==='all'?stocks:stocks.filter(s=>s.acct===acctFilter);
   if(!src.length){el.innerHTML='<div class="empty">등록된 종목이 없습니다</div>';return;}
@@ -1494,6 +1523,83 @@ function renderAcctTabs(){
 }
 function renderAll(){renderAcctTabs();renderPortfolio();renderAlerts();renderManage();renderHistory();renderProfit();}
 
+// ── 현금 관리 ────────────────────────────────────────────
+// cashMap 구조: { normal: 원화, overseas: {usd, krw(환산)}, isa: 원화, ... }
+// 해외는 {usd, krw} 객체로 저장, 나머지는 숫자(원화)
+function cashKrw(k){
+  const v=cashMap[k];
+  if(!v) return 0;
+  if(k==='overseas') return typeof v==='object'? (v.krw||0) : toKrw(v); // 하위 호환
+  return typeof v==='number'? v : 0;
+}
+function cashUsd(k){
+  if(k!=='overseas') return 0;
+  const v=cashMap[k];
+  if(!v) return 0;
+  if(typeof v==='object') return v.usd||0;
+  return typeof v==='number'? v : 0; // 구버전: 숫자면 달러로 간주
+}
+
+function renderCashInputs(){
+  const keys=acctOrder;
+  const totalKrw=keys.reduce((a,k)=>a+cashKrw(k),0);
+  document.getElementById('cashTotal').textContent='합계 '+fW(totalKrw);
+  document.getElementById('cashInputs').innerHTML=keys.map(k=>{
+    const isOvs=(k==='overseas');
+    const curUsd=cashUsd(k);
+    const curKrw=isOvs? curUsd : (cashMap[k]||0);
+    const krwHint=isOvs&&curUsd>0 ? `<div id="cashHint_${k}" style="font-size:10px;color:var(--txt3);margin-top:3px;padding-left:2px;">≈ ${fW(Math.round(toKrw(curUsd)))}</div>` : `<div id="cashHint_${k}" style="font-size:10px;color:var(--txt3);margin-top:3px;padding-left:2px;min-height:14px;"></div>`;
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:5px;width:62px;flex-shrink:0;">
+          <span class="a-dot ${AD[k]}" style="width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
+          <span style="font-size:12px;color:var(--txt2);">${AL[k]}</span>
+        </div>
+        <div style="position:relative;flex:1;">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--txt2);pointer-events:none;">${isOvs?'$':'₩'}</span>
+          <input type="number" id="cash_${k}" value="${curUsd||curKrw||''}" min="0" step="any"
+            placeholder="${isOvs?'0.00':'0'}"
+            style="padding-left:24px;"
+            oninput="updateCashHint('${k}')"/>
+        </div>
+      </div>
+      ${krwHint}
+    </div>`;
+  }).join('');
+}
+
+function updateCashHint(k){
+  const v=parseFloat(document.getElementById('cash_'+k)?.value)||0;
+  const hint=document.getElementById('cashHint_'+k);
+  if(!hint) return;
+  if(k==='overseas'){
+    hint.textContent=v>0?'≈ '+fW(Math.round(toKrw(v))):'';
+  }
+  // 합계 업데이트
+  const total=acctOrder.reduce((a,key)=>{
+    const val=parseFloat(document.getElementById('cash_'+key)?.value)||0;
+    return a+(key==='overseas'? toKrw(val) : val);
+  },0);
+  document.getElementById('cashTotal').textContent='합계 '+fW(Math.round(total));
+}
+
+async function saveCash(){
+  acctOrder.forEach(k=>{
+    const v=parseFloat(document.getElementById('cash_'+k)?.value)||0;
+    if(k==='overseas'){
+      cashMap[k]={usd:v, krw:Math.round(toKrw(v))};
+    } else {
+      cashMap[k]=v;
+    }
+  });
+  await save();
+  renderAll();
+  const btn=event.target;
+  const orig=btn.textContent;
+  btn.textContent='✓ 저장됨';
+  setTimeout(()=>{btn.textContent=orig;},1500);
+}
+
 // ── 차트 내보내기 ────────────────────────────────────────
 function exportChart(){
   const held=stocks.filter(s=>sQty(s)>0);
@@ -1508,13 +1614,14 @@ function exportChart(){
     valueKrw:Math.round(sValKrw(s)),
     pnlKrw:Math.round(sPnlKrw(s))
   }));
-  const payload=JSON.stringify({usdKrw,stocks:data});
+  const payload=JSON.stringify({usdKrw,stocks:data,cashMap});
+  // localStorage에 저장 → chart.html 자동 연동 시 항상 최신 데이터 사용
+  localStorage.setItem('pt_chartData',payload);
   navigator.clipboard.writeText(payload).then(()=>{
     const el=document.getElementById('exportMsg');
     el.textContent='✓ '+held.length+'개 종목 복사 완료! 차트 앱에 붙여넣기 하세요.';
     setTimeout(()=>{el.textContent='';},4000);
   }).catch(()=>{
-    // clipboard API 실패 시 textarea로 fallback
     const ta=document.createElement('textarea');
     ta.value=payload;ta.style.position='fixed';ta.style.opacity='0';
     document.body.appendChild(ta);ta.select();document.execCommand('copy');

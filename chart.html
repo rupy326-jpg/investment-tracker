@@ -212,7 +212,7 @@ const SAMPLE={usdKrw:1380,stocks:[
   {name:'TSLA',acct:'irp',grade:'B',curPrice:250,qty:4,avgPrice:220,valueKrw:1380000,pnlKrw:165600},
 ]};
 
-let stocks=[],usdKrw=1380;
+let stocks=[],usdKrw=1380,cashMap={};
 const charts={};
 let drillKey={acct:null,grade:null};
 
@@ -242,7 +242,7 @@ function loadPaste(){
   try{
     const p=JSON.parse(raw);
     if(!p.stocks||!p.stocks.length)throw new Error('stocks 데이터가 없습니다.');
-    stocks=p.stocks; usdKrw=p.usdKrw||1380;
+    stocks=p.stocks; usdKrw=p.usdKrw||1380; cashMap=p.cashMap||{};
     setStatus('✓ '+stocks.length+'개 종목 로드 완료','ok');
     document.getElementById('fxPill').textContent='USD/KRW '+usdKrw.toLocaleString();
     document.getElementById('hdrSub').textContent=stocks.length+'개 종목 · '+fmtWon(stocks.reduce((a,s)=>a+s.valueKrw,0))+'원';
@@ -340,10 +340,33 @@ function renderAll(){
   renderPnl();
 }
 
+function cashKrw(k){
+  const v=cashMap[k];
+  if(!v) return 0;
+  if(k==='overseas') return typeof v==='object'? (v.krw||0) : v*usdKrw;
+  return typeof v==='number'? v : 0;
+}
+function cashUsd(k){
+  if(k!=='overseas') return 0;
+  const v=cashMap[k];
+  if(!v) return 0;
+  return typeof v==='object'? (v.usd||0) : v;
+}
+
 function renderAcct(){
-  const totalVal=stocks.reduce((a,s)=>a+s.valueKrw,0);
+  // 현금 포함 계좌별 집계
   const map={};
   stocks.forEach(s=>{if(!map[s.acct])map[s.acct]={name:ACCT_LABEL[s.acct]||s.acct,val:0,acct:s.acct,key:s.acct};map[s.acct].val+=s.valueKrw;});
+  // cashMap 추가 반영
+  Object.keys(cashMap).forEach(ac=>{
+    const ck=cashKrw(ac);
+    if(!ck)return;
+    if(!map[ac])map[ac]={name:ACCT_LABEL[ac]||ac,val:0,acct:ac,key:ac};
+    map[ac].val+=ck;
+    map[ac].cash=ck;
+    if(ac==='overseas') map[ac].cashUsd=cashUsd(ac);
+  });
+  const totalVal=Object.values(map).reduce((a,d)=>a+d.val,0);
   const data=Object.values(map).sort((a,b)=>b.val-a.val).map(d=>({...d,color:ACCT_COLORS[d.acct]||COLORS[0],pct:totalVal?d.val/totalVal*100:0}));
 
   const backRow=document.getElementById('acctBackRow');
@@ -351,8 +374,11 @@ function renderAcct(){
   if(drillKey.acct){
     // 드릴다운: 해당 계좌 종목들로 차트 교체
     const dStocks=stocks.filter(s=>s.acct===drillKey.acct);
-    const dVal=dStocks.reduce((a,s)=>a+s.valueKrw,0);
+    const acCashKrw=cashKrw(drillKey.acct);
+    const acCashUsd=cashUsd(drillKey.acct);
+    const dVal=dStocks.reduce((a,s)=>a+s.valueKrw,0)+acCashKrw;
     const dList=groupByName(dStocks).map((d,i)=>({...d,color:COLORS[i%COLORS.length],pct:dVal?d.val/dVal*100:0}));
+    if(acCashKrw>0) dList.push({name:'현금'+(acCashUsd?` ($${acCashUsd.toFixed(2)})`:''),val:acCashKrw,grade:'-',color:'#55556a',pct:dVal?acCashKrw/dVal*100:0});
     mkChart('acctChart',dList);
     document.getElementById('acctVal').textContent=fmtWon(dVal)+'원';
     document.getElementById('acctSub').textContent=ACCT_LABEL[drillKey.acct]+' 종목';
@@ -361,7 +387,7 @@ function renderAcct(){
       <div class="li" style="cursor:default;">
         <span class="li-sw" style="background:${d.color}"></span>
         <span class="li-name">${d.name}</span>
-        <span class="grade-badge" style="background:${GRADE_COLORS[d.grade]}22;color:${GRADE_COLORS[d.grade]}">${d.grade}</span>
+        ${d.grade&&d.grade!=='-'?`<span class="grade-badge" style="background:${GRADE_COLORS[d.grade]}22;color:${GRADE_COLORS[d.grade]}">${d.grade}</span>`:'<span class="grade-badge" style="background:#55556a22;color:#55556a">현금</span>'}
         <span class="li-val">${fmtWon(d.val)}원</span>
         <span class="li-pct">${d.pct.toFixed(1)}%</span>
       </div>`).join('');
@@ -375,6 +401,7 @@ function renderAcct(){
       <div class="li${drillKey.acct===d.key?' selected':''}" onclick="toggleDrill('acct','${d.key}')">
         <span class="li-sw" style="background:${d.color}"></span>
         <span class="li-name">${d.name}</span>
+        ${d.cashUsd?`<span style="font-size:10px;color:var(--txt3);">현금 $${d.cashUsd.toFixed(2)} (${fmtWon(d.cash)}원) 포함</span>`:d.cash?`<span style="font-size:10px;color:var(--txt3);">현금 ${fmtWon(d.cash)}원 포함</span>`:''}
         <span class="li-val">${fmtWon(d.val)}원</span>
         <span class="li-pct">${d.pct.toFixed(1)}%</span>
         <span class="li-arr">›</span>
@@ -466,7 +493,7 @@ document.getElementById('pasteInput').addEventListener('keydown',e=>{
     if(!raw)return;
     const p=JSON.parse(raw);
     if(!p.stocks||!p.stocks.length)return;
-    stocks=p.stocks; usdKrw=p.usdKrw||1380;
+    stocks=p.stocks; usdKrw=p.usdKrw||1380; cashMap=p.cashMap||{};
     document.getElementById('pasteInput').value=raw;
     document.getElementById('fxPill').textContent='USD/KRW '+usdKrw.toLocaleString();
     document.getElementById('hdrSub').textContent=stocks.length+'개 종목 · '+fmtWon(stocks.reduce((a,s)=>a+s.valueKrw,0))+'원';
