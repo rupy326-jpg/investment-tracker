@@ -477,6 +477,30 @@ input::placeholder{color:var(--txt3);}
   </div>
 </div>
 
+<!-- 매매 이력 수정 모달 -->
+<div class="overlay" id="editTradeModal" onclick="if(event.target===this)closeModal('editTradeModal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="mTitle" id="etTitle">이력 수정</div>
+    <div style="background:var(--bg3);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--txt2);" id="etInfo"></div>
+    <div class="mrow"><div class="fl" id="etPriceLbl">단가 (₩)</div><input id="etPrice" type="number" style="margin-top:5px;"/></div>
+    <div class="mrow"><div class="fl">수량</div><input id="etQty" type="number" style="margin-top:5px;"/></div>
+    <div class="mrow"><div class="fl" id="etPnlRow" style="display:none;">손익 (₩)</div><input id="etPnl" type="number" style="margin-top:5px;display:none;" placeholder="매도 손익 (선택)"/></div>
+    <div class="mrow"><div class="fl">날짜</div>
+      <button class="date-btn" onclick="openDatePicker('etDate')" style="margin-top:5px;">
+        <span class="cal-icon">📅</span>
+        <span class="date-val" id="etDate-display">날짜 선택</span>
+      </button>
+      <input id="etDate" type="date" style="margin-top:5px;"/>
+    </div>
+    <div class="mrow"><div class="fl">메모</div><input id="etMemo" placeholder="선택" style="margin-top:5px;"/></div>
+    <div class="mBtns">
+      <button class="btn" onclick="closeModal('editTradeModal')">취소</button>
+      <button class="btn btnP" onclick="execEditTrade()">수정 저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 매수 이력 수정 모달 -->
 <div class="overlay" id="editLotModal" onclick="if(event.target===this)closeModal('editLotModal')">
   <div class="modal">
@@ -1179,6 +1203,7 @@ function renderHistory(){
             ${amtSub}
             ${t.type==='sell'&&pnlStr?`<div class="hist-pnl ${t.pnl>=0?'up':'down'}">${t.pnl>=0?'수익':'손실'}: ${pnlStr}</div>`:''}
           </div>
+          <button class="hist-del" onclick="openEditTrade(${t.id})">수정</button>
           <button class="hist-del" onclick="openDelTrade(${t.id})">삭제</button>
         </div>
       </div>`;
@@ -1702,6 +1727,66 @@ async function execEditGrade(){
     if(s.name===activeEditGradeName) s.grade=selectedEgGrade;
   });
   closeModal('editGradeModal');
+  await save();
+  renderAll();
+}
+
+// ── 매매 이력 수정 ────────────────────────────────────────
+let activeEditTradeId=null;
+function openEditTrade(tid){
+  activeEditTradeId=tid;
+  const t=trades.find(x=>x.id===tid);
+  if(!t) return;
+  const ov=t.acct==='overseas';
+  const isSell=t.type==='sell';
+  document.getElementById('etTitle').textContent=(isSell?'매도':'매수')+' 이력 수정';
+  document.getElementById('etInfo').textContent=`${t.sName} · ${AL[t.acct]} · ${t.date} · ${isSell?'매도':'매수'}`;
+  document.getElementById('etPriceLbl').textContent=`단가 (${ov?'$':'₩'})`;
+  document.getElementById('etPrice').value=t.price;
+  document.getElementById('etQty').value=t.qty;
+  document.getElementById('etDate').value=t.date;
+  const disp=document.getElementById('etDate-display');
+  if(disp){disp.textContent=fDate(t.date);disp.classList.remove('placeholder');}
+  document.getElementById('etMemo').value=t.memo||'';
+  // 매도일 경우 손익 필드 표시
+  const pnlRow=document.getElementById('etPnlRow');
+  const pnlInp=document.getElementById('etPnl');
+  if(isSell){
+    pnlRow.style.display='';
+    pnlInp.style.display='';
+    pnlInp.placeholder=`손익 (${ov?'$':'₩'})`;
+    pnlInp.value=t.pnl!=null?t.pnl:'';
+  } else {
+    pnlRow.style.display='none';
+    pnlInp.style.display='none';
+  }
+  document.getElementById('editTradeModal').classList.add('open');
+}
+async function execEditTrade(){
+  const t=trades.find(x=>x.id===activeEditTradeId);
+  if(!t){closeModal('editTradeModal');return;}
+  const price=parseFloat(document.getElementById('etPrice').value);
+  const qty=parseFloat(document.getElementById('etQty').value);
+  const date=document.getElementById('etDate').value;
+  const memo=document.getElementById('etMemo').value.trim();
+  if(isNaN(price)||price<=0){alert('단가를 올바르게 입력해주세요.');return;}
+  if(isNaN(qty)||qty<=0){alert('수량을 올바르게 입력해주세요.');return;}
+  if(!date){alert('날짜를 선택해주세요.');return;}
+  t.price=price; t.qty=qty; t.date=date; t.memo=memo;
+  // 매도 손익 수정
+  if(t.type==='sell'){
+    const pnlVal=document.getElementById('etPnl').value;
+    if(pnlVal!=='') t.pnl=parseFloat(pnlVal)||0;
+  }
+  // 매수 이력인 경우 연결된 lot도 동기화
+  if(t.type==='buy'){
+    const s=stocks.find(x=>x.id===t.sid);
+    if(s){
+      const l=s.lots.find(x=>x.date===t.date||x.price===price);
+      if(l){l.price=price;l.qty=qty;l.date=date;l.memo=memo;}
+    }
+  }
+  closeModal('editTradeModal');
   await save();
   renderAll();
 }
