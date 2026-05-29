@@ -876,6 +876,7 @@ async function load(){
     }
     const lu=localStorage.getItem('pt_lastup');
     document.getElementById('lastUp').textContent=lu?'저장: '+lu:'저장 없음';
+    mergeStocks();
   }catch(e){
     console.error('로드 실패',e);
     document.getElementById('lastUp').textContent='오프라인 모드';
@@ -887,11 +888,32 @@ async function load(){
       if(s){stocks=JSON.parse(s);stocks.forEach(s=>{if(!s.acct)s.acct='normal';});}
       if(t){trades=JSON.parse(t);trades.forEach(t=>{if(!t.acct)t.acct='normal';});}
       if(i){const o=JSON.parse(i);nextSid=o.nextSid;nextTid=o.nextTid;nextLid=o.nextLid;}
+      mergeStocks();
     }catch(e2){}
   }
 }
 
 // ── 계산 ────────────────────────────────────────────────
+// 같은 name+acct 조합의 stock을 하나로 병합 (lots 합치기, trades sid 재연결)
+function mergeStocks(){
+  const merged=[];
+  const map={}; // key: name+acct → stock
+  stocks.forEach(s=>{
+    const key=s.name+'||'+s.acct;
+    if(!map[key]){
+      map[key]={...s,lots:[...s.lots]};
+      merged.push(map[key]);
+    } else {
+      // lots 합치기 (중복 lot id 방지)
+      s.lots.forEach(l=>{
+        if(!map[key].lots.find(x=>x.id===l.id)) map[key].lots.push(l);
+      });
+      // 병합된 stock의 id로 trades sid 재연결
+      trades.forEach(t=>{if(t.sid===s.id) t.sid=map[key].id;});
+    }
+  });
+  stocks=merged;
+}
 function sAvg(s){if(!s.lots.length)return 0;const t=s.lots.reduce((a,l)=>a+l.price*l.qty,0),q=s.lots.reduce((a,l)=>a+l.qty,0);return q?t/q:0;}
 function sQty(s){return s.lots.reduce((a,l)=>a+l.qty,0);}
 function sPct(s){const a=sAvg(s);return a?(s.curPrice-a)/a*100:0;}
@@ -1555,9 +1577,6 @@ function renderAcctTabs(){
       <span class="a-dot ${AD[t.key]||'d-all'}"></span>${t.label}
     </button>`).join('');
 }
-function renderAll(){renderAcctTabs();renderPortfolio();renderAlerts();renderManage();renderHistory();renderProfit();}
-
-// ── 현금 관리 ────────────────────────────────────────────
 // cashMap 구조: { normal: 원화, overseas: {usd, krw(환산)}, isa: 원화, ... }
 // 해외는 {usd, krw} 객체로 저장, 나머지는 숫자(원화)
 function cashKrw(k){
@@ -1785,25 +1804,65 @@ async function execEditTrade(){
   const qty=parseFloat(document.getElementById('etQty').value);
   const date=document.getElementById('etDate').value;
   const memo=document.getElementById('etMemo').value.trim();
-  const acct=document.getElementById('etAcct').value;
+  const newAcct=document.getElementById('etAcct').value;
   if(isNaN(price)||price<=0){alert('단가를 올바르게 입력해주세요.');return;}
   if(isNaN(qty)||qty<=0){alert('수량을 올바르게 입력해주세요.');return;}
   if(!date){alert('날짜를 선택해주세요.');return;}
-  t.price=price; t.qty=qty; t.date=date; t.memo=memo; t.acct=acct;
+
+  // trade 기본 필드 수정
+  t.price=price; t.qty=qty; t.date=date; t.memo=memo; t.acct=newAcct;
+
   // 매도 손익 수정
   if(t.type==='sell'){
     const pnlVal=document.getElementById('etPnl').value;
     if(pnlVal!=='') t.pnl=parseFloat(pnlVal)||0;
   }
-  // 매수 이력인 경우 연결된 lot + stock 계좌도 동기화
+
+  // 매수 이력: lot을 올바른 계좌의 stock으로 이동
   if(t.type==='buy'){
-    const s=stocks.find(x=>x.id===t.sid);
-    if(s){
-      s.acct=acct;
-      const l=s.lots.find(x=>x.date===t.date||x.price===price);
-      if(l){l.price=price;l.qty=qty;l.date=date;l.memo=memo;}
+    const srcStock=stocks.find(x=>x.id===t.sid);
+    if(srcStock){
+      // 해당 lot 찾기 (id 기준 우선, 없으면 price+date 매칭)
+      const lotIdx=srcStock.lots.findIndex(x=>
+        (x.id!=null&&x.id===t.lid) ||
+        (x.price===t.price&&x.date===t.date&&x.qty===t.qty)
+      );
+      if(lotIdx>-1){
+        const lot=srcStock.lots[lotIdx];
+        // lot 값 업데이트
+        lot.price=price; lot.qty=qty; lot.date=date; lot.memo=memo;
+
+        if(newAcct!==srcStock.acct){
+          // 계좌가 바뀐 경우: lot을 다른 계좌의 동일 종목 stock으로 이동
+          let destStock=stocks.find(x=>x.name===srcStock.name&&x.acct===newAcct);
+          if(!destStock){
+            // 대상 계좌에 stock이 없으면 새로 생성
+            destStock={
+              id:nextSid++,
+              name:srcStock.name,
+              acct:newAcct,
+              grade:srcStock.grade,
+              curPrice:srcStock.curPrice,
+              weekMA:srcStock.weekMA,
+              monthMA:srcStock.monthMA,
+              lots:[]
+            };
+            stocks.push(destStock);
+          }
+          // lot 이동
+          srcStock.lots.splice(lotIdx,1);
+          destStock.lots.push(lot);
+          // trade의 sid도 대상 stock으로 변경
+          t.sid=destStock.id;
+          // 원본 stock lot이 0개면 제거
+          if(!srcStock.lots.length){
+            stocks=stocks.filter(x=>x.id!==srcStock.id);
+          }
+        }
+      }
     }
   }
+
   closeModal('editTradeModal');
   await save();
   renderAll();
@@ -1893,9 +1952,7 @@ async function execDelTrade(){
   renderAll();
 }
 
-function renderAll(){renderAcctTabs();renderPortfolio();renderAlerts();renderManage();renderHistory();renderProfit();}
-
-// ── 초기화 ──────────────────────────────────────────────
+function renderAll(){mergeStocks();renderAcctTabs();renderPortfolio();renderAlerts();renderManage();renderHistory();renderProfit();}
 (async()=>{
   loadFx();
   document.getElementById('mDate').value=today();
