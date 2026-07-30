@@ -446,6 +446,29 @@ input::placeholder{color:var(--txt3);}
   </div>
 </div>
 
+<!-- 일괄 매도 모달 -->
+<div class="overlay" id="bulkSellModal" onclick="if(event.target===this)closeModal('bulkSellModal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="mTitle" id="bsTitle">전량 매도</div>
+    <div style="background:var(--bg3);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--txt2);" id="bsInfo"></div>
+    <div class="mrow"><div class="fl" id="bsPriceLbl">매도가 (₩)</div><input id="bsPrice" type="number" style="margin-top:5px;" onkeydown="if(event.key==='Enter')execBulkSell()"/></div>
+    <div class="mrow"><div class="fl">매도일</div>
+      <button class="date-btn" onclick="openDatePicker('bsDate')" style="margin-top:5px;">
+        <span class="cal-icon">📅</span>
+        <span class="date-val" id="bsDate-display">날짜 선택</span>
+      </button>
+      <input id="bsDate" type="date" style="margin-top:5px;"/>
+    </div>
+    <div class="mrow"><div class="fl">메모</div><input id="bsMemo" placeholder="선택" style="margin-top:5px;" onkeydown="if(event.key==='Enter')execBulkSell()"/></div>
+    <div id="bsPreview" style="margin-top:10px;font-size:14px;color:var(--txt2);min-height:20px;font-weight:600;"></div>
+    <div class="mBtns">
+      <button class="btn" onclick="closeModal('bulkSellModal')">취소</button>
+      <button class="btn btnP" style="background:var(--red);border-color:var(--red);" onclick="execBulkSell()">전량 매도 실행</button>
+    </div>
+  </div>
+</div>
+
 <!-- 매도 모달 -->
 <div class="overlay" id="sellModal" onclick="if(event.target===this)closeModal('sellModal')">
   <div class="modal">
@@ -1126,7 +1149,10 @@ function renderPortfolio(){
           <span class="stock-name">${rep.name}</span>
           <span class="badge b${sg.charAt(0).toUpperCase()+sg.slice(1)}">${SL[sg]}</span>
         </div>
-        <button class="btn btnSm" style="color:var(--blue);border-color:var(--blue);font-size:11px;" onclick="openPrice(${rep.id})">가격 수정</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btnSm" style="color:var(--red);border-color:var(--red);font-size:11px;" onclick="openBulkSell(${rep.id},acctFilter)">전량매도</button>
+          <button class="btn btnSm" style="color:var(--blue);border-color:var(--blue);font-size:11px;" onclick="openPrice(${rep.id})">가격 수정</button>
+        </div>
       </div>
       <div class="stock-info-row" style="margin-bottom:6px;">
         <div class="stock-price-block">
@@ -1867,6 +1893,85 @@ async function execEditTrade(){
   await save();
   renderAll();
 }
+
+// ── 일괄 매도 ────────────────────────────────────────────
+let activeBulkSid=null, activeBulkAcct=null;
+function openBulkSell(sid, acct){
+  const rep=stocks.find(x=>x.id===sid);
+  if(!rep) return;
+  activeBulkSid=sid;
+  activeBulkAcct=(acct&&acct!=='all')?acct:null;
+  // 계좌 필터가 있으면 해당 계좌만, 없으면 같은 종목 전체
+  const grp=stocks.filter(x=>x.name===rep.name&&sQty(x)>0&&(!activeBulkAcct||x.acct===activeBulkAcct));
+  const totalQty=grp.reduce((a,s)=>a+sQty(s),0);
+  const ov=isOvs(rep);
+  const acctLabel=activeBulkAcct?AL[activeBulkAcct]:'전 계좌';
+  document.getElementById('bsTitle').textContent=rep.name+' 전량 매도';
+  document.getElementById('bsInfo').textContent=`${acctLabel} · 총 ${fN(totalQty)}주 · 현재가 ${fPriceRaw(rep.curPrice,rep.acct)}`;
+  document.getElementById('bsPriceLbl').textContent=ov?'매도가 ($)':'매도가 (₩)';
+  document.getElementById('bsPrice').value=rep.curPrice;
+  document.getElementById('bsDate').value=today();
+  const disp=document.getElementById('bsDate-display');
+  if(disp){disp.textContent=fDate(today());disp.classList.remove('placeholder');}
+  document.getElementById('bsMemo').value='';
+  const upd=()=>{
+    const sp=parseFloat(document.getElementById('bsPrice').value)||0;
+    const totalPnl=grp.reduce((a,s)=>a+s.lots.reduce((b,l)=>{
+      const qty=l.qty||0; const pnl=(sp-l.price)*qty;
+      return b+(ov?toKrw(pnl):pnl);
+    },0),0);
+    const c=totalPnl>=0?'var(--green)':'var(--red)';
+    document.getElementById('bsPreview').innerHTML=`예상 수익: <span style="color:${c};font-weight:700;">${fW(Math.round(totalPnl))}</span> / ${acctLabel} ${fN(totalQty)}주 전량`;
+  };
+  document.getElementById('bsPrice').oninput=upd;
+  upd();
+  document.getElementById('bulkSellModal').classList.add('open');
+}
+async function execBulkSell(){
+  const rep=stocks.find(x=>x.id===activeBulkSid);
+  if(!rep) return;
+  const sp=parseFloat(document.getElementById('bsPrice').value);
+  const date=document.getElementById('bsDate').value||today();
+  const memo=document.getElementById('bsMemo').value.trim();
+  if(isNaN(sp)||sp<=0){alert('매도가를 입력해주세요.');return;}
+  const ov=isOvs(rep);
+  const grp=stocks.filter(x=>x.name===rep.name&&sQty(x)>0&&(!activeBulkAcct||x.acct===activeBulkAcct));
+  const removedSids=[];
+  grp.forEach(s=>{
+    s.lots.forEach(l=>{
+      if(l.qty<=0) return;
+      const pnl=(sp-l.price)*l.qty;
+      trades.push({id:nextTid++,sid:s.id,sName:s.name,acct:s.acct,grade:s.grade,type:'sell',date,price:sp,qty:l.qty,pnl:ov?toKrw(pnl):pnl,memo});
+    });
+    s.lots=[];
+    removedSids.push(s.id);
+  });
+  stocks=stocks.filter(x=>!removedSids.includes(x.id));
+  closeModal('bulkSellModal');
+  try{
+    for(const sid of removedSids) await sbFetch(`stocks?id=eq.${sid}`,'DELETE');
+  }catch(e){console.error('Supabase 일괄매도 삭제 실패',e);}
+  await save();
+  renderAll();
+}
+
+// ── 엔터키로 모달 저장 ───────────────────────────────────
+function addEnterKey(inputIds, handler){
+  inputIds.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener('keydown',e=>{if(e.key==='Enter')handler();});
+  });
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  // 가격 수정 모달
+  addEnterKey(['pmPrice'],savePriceModal);
+  // 매도 모달
+  addEnterKey(['smPrice','smQty','smMemo'],execSell);
+  // 이력 수정 모달
+  addEnterKey(['etPrice','etQty','etMemo','etPnl'],execEditTrade);
+  // 일괄매도 모달
+  addEnterKey(['bsPrice','bsMemo'],execBulkSell);
+});
 
 // ── 매매 이력 삭제 ───────────────────────────────────────
 let activeEditName=null;
