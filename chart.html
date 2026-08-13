@@ -125,6 +125,7 @@ textarea::placeholder{color:var(--txt3);}
 <div class="tab-bar">
   <button class="tab-btn active" onclick="sw('import',this)">가져오기</button>
   <button class="tab-btn" onclick="sw('stock',this)">종목별</button>
+  <button class="tab-btn" onclick="sw('cat',this)">카테고리</button>
   <button class="tab-btn" onclick="sw('acct',this)">계좌별</button>
   <button class="tab-btn" onclick="sw('grade',this)">등급별</button>
   <button class="tab-btn" onclick="sw('pnl',this)">수익률</button>
@@ -158,6 +159,18 @@ textarea::placeholder{color:var(--txt3);}
   <div id="stockContent" style="display:none;">
     <div class="chart-wrap"><canvas id="stockChart" role="img" aria-label="종목별 비율"></canvas><div class="center-txt"><div class="center-val" id="stockVal">—</div><div class="center-sub">총 평가</div></div></div>
     <div class="legend" id="stockLegend"></div>
+  </div>
+</div>
+
+<!-- 카테고리별 -->
+<div id="tab-cat" class="sec">
+  <div id="catEmpty" class="empty">가져오기 탭에서<br>데이터를 먼저 불러오세요</div>
+  <div id="catContent" style="display:none;">
+    <div id="catBackRow" style="display:none;margin-bottom:8px;">
+      <button onclick="catDrillBack()" style="background:none;border:none;color:var(--blue);font-size:12px;cursor:pointer;padding:4px 0;">← 전체 카테고리로</button>
+    </div>
+    <div class="chart-wrap"><canvas id="catChart" role="img" aria-label="카테고리별 비율"></canvas><div class="center-txt"><div class="center-val" id="catVal">—</div><div class="center-sub" id="catSub">카테고리별</div></div></div>
+    <div class="legend" id="catLegend"></div>
   </div>
 </div>
 
@@ -215,6 +228,39 @@ const SAMPLE={usdKrw:1380,stocks:[
 let stocks=[],usdKrw=1380,cashMap={};
 const charts={};
 let drillKey={acct:null,grade:null};
+let catDrillName=null;
+
+// ── 카테고리 정의 ─────────────────────────────────────────
+const CATEGORIES=[
+  {name:'미국 지수 ETF', emoji:'📡', color:'#4da6ff',
+   stocks:['S&P500','나스닥100','미국배당다우존스','KODEX 200']},
+  {name:'배당 / 인컴',   emoji:'💰', color:'#00d48a',
+   stocks:['JEPQ','맥쿼리인프라']},
+  {name:'AI / 기술',     emoji:'🤖', color:'#a894ff',
+   stocks:['KODEX 미국 AI전력','엔비디아','테슬라밸류체인','KODEX미국AI전력']},
+  {name:'우주 / 방위',   emoji:'🚀', color:'#ff9f43',
+   stocks:['1Q미국우주항공테크','인튜이티브머신스','1Q우주항공테크','1Q미국 우주항공테크']},
+  {name:'헬스케어',      emoji:'🏥', color:'#ff6b9d',
+   stocks:['유나이티드헬스']},
+  {name:'크립토',        emoji:'🪙', color:'#f7931a',
+   stocks:['스트래티지','서클','서클(CRCL)','비트마인','로빈후드','Strategy','CRCL']},
+  {name:'국채 / 채권',   emoji:'🏦', color:'#54a0ff',
+   stocks:['ACE 미국국채30','ACE미국국채30','RISE 미국국채 엔화노출','RISE미국국채엔화노출',
+           'KODEX 미국국채타켓커버드','KODEX미국국채타켓커버드','KODEX미국국채커버드',
+           'KODEX 미국국채선물','KODEX미국국채선물','TMF','ACE 미국국채30(H)']},
+  {name:'국내',          emoji:'🇰🇷', color:'#ee5a24',
+   stocks:['KODEX 200','TIGER 반도체 TOP10','TIGER반도체TOP10']},
+  {name:'대체자산',      emoji:'✨', color:'#ffd32a',
+   stocks:['금현물']},
+];
+
+function getCat(stockName){
+  const n=stockName.trim();
+  for(const cat of CATEGORIES){
+    if(cat.stocks.some(s=>n.includes(s)||s.includes(n))) return cat;
+  }
+  return {name:'기타',emoji:'📦',color:'#55556a'};
+}
 
 function fmtWon(n){
   const abs=Math.abs(n);
@@ -330,6 +376,12 @@ function renderAll(){
       <span class="li-pct">${totalVal?(d.val/totalVal*100).toFixed(1):0}%</span>
     </div>`).join('');
 
+  // 카테고리별
+  document.getElementById('catEmpty').style.display='none';
+  document.getElementById('catContent').style.display='block';
+  catDrillName=null;
+  renderCategory();
+
   // 계좌별
   document.getElementById('acctEmpty').style.display='none';
   document.getElementById('acctContent').style.display='block';
@@ -358,6 +410,60 @@ function cashUsd(k){
   if(!v) return 0;
   return typeof v==='object'? (v.usd||0) : v;
 }
+
+function renderCategory(){
+  const totalVal=stocks.reduce((a,s)=>a+s.valueKrw,0);
+  const totalCash=Object.keys(cashMap).reduce((a,k)=>a+cashKrw(k),0);
+  const grandTotal=totalVal+totalCash;
+
+  document.getElementById('catEmpty').style.display='none';
+  document.getElementById('catContent').style.display='block';
+
+  if(catDrillName){
+    // 드릴다운: 해당 카테고리 종목 목록
+    const cat=CATEGORIES.find(c=>c.name===catDrillName)||{name:'기타',emoji:'📦',color:'#55556a'};
+    const catStocks=stocks.filter(s=>getCat(s.name).name===catDrillName);
+    const catVal=catStocks.reduce((a,s)=>a+s.valueKrw,0);
+    const items=catStocks.map((s,i)=>({name:s.name,val:s.valueKrw,color:COLORS[i%COLORS.length],grade:s.grade}))
+      .sort((a,b)=>b.val-a.val);
+    mkChart('catChart',items);
+    document.getElementById('catVal').textContent=fmtWon(catVal)+'원';
+    document.getElementById('catSub').textContent=cat.emoji+' '+cat.name;
+    document.getElementById('catBackRow').style.display='block';
+    document.getElementById('catLegend').innerHTML=items.map(d=>`
+      <div class="li" style="cursor:default;">
+        <span class="li-sw" style="background:${d.color}"></span>
+        <span class="li-name">${d.name}</span>
+        <span class="grade-badge" style="background:${GRADE_COLORS[d.grade]||'#55556a'}22;color:${GRADE_COLORS[d.grade]||'#55556a'}">${d.grade||'-'}</span>
+        <span class="li-val">${fmtWon(d.val)}원</span>
+        <span class="li-pct">${grandTotal?(d.val/grandTotal*100).toFixed(1):0}%</span>
+      </div>`).join('');
+  } else {
+    // 전체 카테고리 차트
+    const map={};
+    stocks.forEach(s=>{
+      const cat=getCat(s.name);
+      if(!map[cat.name]) map[cat.name]={name:cat.name,emoji:cat.emoji,color:cat.color,val:0};
+      map[cat.name].val+=s.valueKrw;
+    });
+    if(totalCash>0) map['현금']={name:'현금',emoji:'💵',color:'#55556a',val:totalCash};
+    const data=Object.values(map).sort((a,b)=>b.val-a.val);
+    mkChart('catChart',data);
+    document.getElementById('catVal').textContent=fmtWon(grandTotal)+'원';
+    document.getElementById('catSub').textContent='카테고리별';
+    document.getElementById('catBackRow').style.display='none';
+    document.getElementById('catLegend').innerHTML=data.map(d=>`
+      <div class="li" onclick="${d.name!=='현금'?`catDrillInto('${d.name}')`:''}" style="${d.name==='현금'?'cursor:default':''}">
+        <span class="li-sw" style="background:${d.color}"></span>
+        <span class="li-name">${d.emoji} ${d.name}</span>
+        <span class="li-val">${fmtWon(d.val)}원</span>
+        <span class="li-pct">${grandTotal?(d.val/grandTotal*100).toFixed(1):0}%</span>
+        ${d.name!=='현금'?'<span class="li-arr">›</span>':''}
+      </div>`).join('');
+  }
+}
+function catDrillInto(name){catDrillName=name;renderCategory();}
+function catDrillBack(){catDrillName=null;renderCategory();}
 
 function renderAcct(){
   // 현금 포함 계좌별 집계
