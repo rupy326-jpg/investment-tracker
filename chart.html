@@ -233,31 +233,29 @@ let catDrillName=null;
 // ── 카테고리 정의 ─────────────────────────────────────────
 const CATEGORIES=[
   {name:'미국 지수 ETF', emoji:'📡', color:'#4da6ff',
-   stocks:['S&P500','나스닥100','미국배당다우존스','KODEX 200']},
+   keywords:['S&P500','나스닥100','미국배당다우존스']},
   {name:'배당 / 인컴',   emoji:'💰', color:'#00d48a',
-   stocks:['JEPQ','맥쿼리인프라']},
+   keywords:['JEPQ','맥쿼리인프라']},
   {name:'AI / 기술',     emoji:'🤖', color:'#a894ff',
-   stocks:['KODEX 미국 AI전력','엔비디아','테슬라밸류체인','KODEX미국AI전력']},
+   keywords:['AI전력','AI 전력','엔비디아','테슬라밸류체인']},
   {name:'우주 / 방위',   emoji:'🚀', color:'#ff9f43',
-   stocks:['1Q미국우주항공테크','인튜이티브머신스','1Q우주항공테크','1Q미국 우주항공테크']},
+   keywords:['우주항공','인튜이티브머신스','인튜이티브 머신스']},
   {name:'헬스케어',      emoji:'🏥', color:'#ff6b9d',
-   stocks:['유나이티드헬스']},
+   keywords:['유나이티드헬스','유나이티드 헬스']},
   {name:'크립토',        emoji:'🪙', color:'#f7931a',
-   stocks:['스트래티지','서클','서클(CRCL)','비트마인','로빈후드','Strategy','CRCL']},
+   keywords:['스트래티지','스래티지','Strategy','서클','CRCL','비트마인','로빈후드','Robinhood']},
   {name:'국채 / 채권',   emoji:'🏦', color:'#54a0ff',
-   stocks:['ACE 미국국채30','ACE미국국채30','RISE 미국국채 엔화노출','RISE미국국채엔화노출',
-           'KODEX 미국국채타켓커버드','KODEX미국국채타켓커버드','KODEX미국국채커버드',
-           'KODEX 미국국채선물','KODEX미국국채선물','TMF','ACE 미국국채30(H)']},
+   keywords:['국채30','국채 30','RISE 미국국채','RISE미국국채','국채타켓','국채커버드','국채 선물','국채선물','TMF']},
   {name:'국내',          emoji:'🇰🇷', color:'#ee5a24',
-   stocks:['KODEX 200','TIGER 반도체 TOP10','TIGER반도체TOP10']},
+   keywords:['KODEX 200','KODEX200','TIGER 반도체','Tiger 반도체','TIGER반도체','반도체 TOP','KODEX 인도','KODEX인도']},
   {name:'대체자산',      emoji:'✨', color:'#ffd32a',
-   stocks:['금현물']},
+   keywords:['금현물']},
 ];
 
 function getCat(stockName){
   const n=stockName.trim();
   for(const cat of CATEGORIES){
-    if(cat.stocks.some(s=>n.includes(s)||s.includes(n))) return cat;
+    if(cat.keywords.some(k=>n.includes(k)||k.includes(n))) return cat;
   }
   return {name:'기타',emoji:'📦',color:'#55556a'};
 }
@@ -420,12 +418,17 @@ function renderCategory(){
   document.getElementById('catContent').style.display='block';
 
   if(catDrillName){
-    // 드릴다운: 해당 카테고리 종목 목록
     const cat=CATEGORIES.find(c=>c.name===catDrillName)||{name:'기타',emoji:'📦',color:'#55556a'};
     const catStocks=stocks.filter(s=>getCat(s.name).name===catDrillName);
+    // 동일 종목명은 계좌 무관 합산
+    const merged={};
+    catStocks.forEach(s=>{
+      if(!merged[s.name]) merged[s.name]={name:s.name,val:0,grade:s.grade};
+      merged[s.name].val+=s.valueKrw;
+    });
     const catVal=catStocks.reduce((a,s)=>a+s.valueKrw,0);
-    const items=catStocks.map((s,i)=>({name:s.name,val:s.valueKrw,color:COLORS[i%COLORS.length],grade:s.grade}))
-      .sort((a,b)=>b.val-a.val);
+    const items=Object.values(merged).sort((a,b)=>b.val-a.val)
+      .map((d,i)=>({...d,color:COLORS[i%COLORS.length]}));
     mkChart('catChart',items);
     document.getElementById('catVal').textContent=fmtWon(catVal)+'원';
     document.getElementById('catSub').textContent=cat.emoji+' '+cat.name;
