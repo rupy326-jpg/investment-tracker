@@ -255,7 +255,6 @@ input::placeholder{color:var(--txt3);}
 .hist-sum{font-size:12px;color:var(--txt2);background:var(--bg2);border-radius:10px;padding:9px 12px;margin-bottom:8px;}
 .hist-sum b{color:var(--txt);}
 .lot-month-hd{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--txt2);margin:10px 0 5px;padding-bottom:4px;border-bottom:0.5px solid var(--border);}
-.lot-month-hd:first-of-type{margin-top:4px;}
 </style>
 </head>
 <body>
@@ -384,6 +383,16 @@ input::placeholder{color:var(--txt3);}
     <div id="exportMsg" style="font-size:11px;color:var(--green);text-align:center;margin-top:7px;min-height:16px;"></div>
     <a href="chart.html" style="display:block;margin-top:8px;text-align:center;font-size:12px;color:var(--blue);text-decoration:none;padding:8px;border-radius:10px;border:0.5px solid var(--border2);">📊 차트 앱으로 이동 →</a>
   </div>
+
+  <!-- 현금 관리 -->
+  <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:14px;margin-bottom:12px;border:0.5px solid var(--border2);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:700;color:var(--txt);">💰 계좌별 현금</div>
+      <div style="font-size:11px;color:var(--txt3);" id="cashTotal">합계 ₩0</div>
+    </div>
+    <div id="cashInputs"></div>
+    <button class="btn btnP" style="width:100%;padding:10px;font-size:13px;border-radius:12px;margin-top:8px;" onclick="saveCash()">현금 저장</button>
+  </div>
   <div class="form-card">
     <div class="form-title">매수 추가</div>
     <div class="form-grid" style="grid-template-columns:1fr 1fr;">
@@ -424,11 +433,50 @@ input::placeholder{color:var(--txt3);}
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="mTitle" id="pmTitle">현재가 / 이평선 수정</div>
+    <div class="mrow"><div class="fl">등급</div>
+      <div style="display:flex;gap:7px;margin-top:6px;">
+        <button class="pm-grade-btn" data-grade="S" onclick="selectPmGrade('S')" style="flex:1;padding:9px 4px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <span style="width:22px;height:22px;border-radius:5px;background:var(--purple-dim);color:var(--purple-txt);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">S</span>
+        </button>
+        <button class="pm-grade-btn" data-grade="A" onclick="selectPmGrade('A')" style="flex:1;padding:9px 4px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <span style="width:22px;height:22px;border-radius:5px;background:var(--green-dim);color:var(--green-txt);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">A</span>
+        </button>
+        <button class="pm-grade-btn" data-grade="B" onclick="selectPmGrade('B')" style="flex:1;padding:9px 4px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <span style="width:22px;height:22px;border-radius:5px;background:var(--amber-dim);color:var(--amber-txt);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">B</span>
+        </button>
+        <button class="pm-grade-btn" data-grade="F" onclick="selectPmGrade('F')" style="flex:1;padding:9px 4px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <span style="width:22px;height:22px;border-radius:5px;background:var(--red-dim);color:var(--red-txt);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">F</span>
+        </button>
+      </div>
+    </div>
     <div class="mrow"><div class="fl">주봉 10이평</div><select id="pmWma" style="margin-top:5px;"><option value="above">위 (이평선 위)</option><option value="below">아래 (이평선 아래)</option></select></div>
     <div class="mrow"><div class="fl">월봉 10이평</div><select id="pmMma" style="margin-top:5px;"><option value="above">위 (이평선 위)</option><option value="below">아래 (이평선 아래)</option></select></div>
     <div class="mrow"><div class="fl" id="pmPriceLbl">현재가 (₩)</div><input id="pmPrice" type="number" style="margin-top:5px;"/></div>
     <div id="pmKrwHint" style="font-size:11px;color:var(--txt2);margin-top:4px;display:none;"></div>
     <div class="mBtns"><button class="btn" onclick="closeModal('priceModal')">취소</button><button class="btn btnP" onclick="savePriceModal()">저장</button></div>
+  </div>
+</div>
+
+<!-- 일괄 매도 모달 -->
+<div class="overlay" id="bulkSellModal" onclick="if(event.target===this)closeModal('bulkSellModal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="mTitle" id="bsTitle">전량 매도</div>
+    <div style="background:var(--bg3);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--txt2);" id="bsInfo"></div>
+    <div class="mrow"><div class="fl" id="bsPriceLbl">매도가 (₩)</div><input id="bsPrice" type="number" style="margin-top:5px;" onkeydown="if(event.key==='Enter')execBulkSell()"/></div>
+    <div class="mrow"><div class="fl">매도일</div>
+      <button class="date-btn" onclick="openDatePicker('bsDate')" style="margin-top:5px;">
+        <span class="cal-icon">📅</span>
+        <span class="date-val" id="bsDate-display">날짜 선택</span>
+      </button>
+      <input id="bsDate" type="date" style="margin-top:5px;"/>
+    </div>
+    <div class="mrow"><div class="fl">메모</div><input id="bsMemo" placeholder="선택" style="margin-top:5px;" onkeydown="if(event.key==='Enter')execBulkSell()"/></div>
+    <div id="bsPreview" style="margin-top:10px;font-size:14px;color:var(--txt2);min-height:20px;font-weight:600;"></div>
+    <div class="mBtns">
+      <button class="btn" onclick="closeModal('bulkSellModal')">취소</button>
+      <button class="btn btnP" style="background:var(--red);border-color:var(--red);" onclick="execBulkSell()">전량 매도 실행</button>
+    </div>
   </div>
 </div>
 
@@ -463,6 +511,39 @@ input::placeholder{color:var(--txt3);}
   </div>
 </div>
 
+<!-- 매매 이력 수정 모달 -->
+<div class="overlay" id="editTradeModal" onclick="if(event.target===this)closeModal('editTradeModal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="mTitle" id="etTitle">이력 수정</div>
+    <div style="background:var(--bg3);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--txt2);" id="etInfo"></div>
+    <div class="mrow"><div class="fl" id="etPriceLbl">단가 (₩)</div><input id="etPrice" type="number" style="margin-top:5px;"/></div>
+    <div class="mrow"><div class="fl">수량</div><input id="etQty" type="number" style="margin-top:5px;"/></div>
+    <div class="mrow"><div class="fl" id="etPnlRow" style="display:none;">손익 (₩)</div><input id="etPnl" type="number" style="margin-top:5px;display:none;" placeholder="매도 손익 (선택)"/></div>
+    <div class="mrow"><div class="fl">계좌</div>
+      <select id="etAcct" style="margin-top:5px;" onchange="onEtAcctChange()">
+        <option value="normal">일반</option>
+        <option value="overseas">해외(USD)</option>
+        <option value="isa">ISA</option>
+        <option value="irp">IRP</option>
+        <option value="pension">연금</option>
+      </select>
+    </div>
+    <div class="mrow"><div class="fl">날짜</div>
+      <button class="date-btn" onclick="openDatePicker('etDate')" style="margin-top:5px;">
+        <span class="cal-icon">📅</span>
+        <span class="date-val" id="etDate-display">날짜 선택</span>
+      </button>
+      <input id="etDate" type="date" style="margin-top:5px;"/>
+    </div>
+    <div class="mrow"><div class="fl">메모</div><input id="etMemo" placeholder="선택" style="margin-top:5px;"/></div>
+    <div class="mBtns">
+      <button class="btn" onclick="closeModal('editTradeModal')">취소</button>
+      <button class="btn btnP" onclick="execEditTrade()">수정 저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 매수 이력 수정 모달 -->
 <div class="overlay" id="editLotModal" onclick="if(event.target===this)closeModal('editLotModal')">
   <div class="modal">
@@ -483,6 +564,38 @@ input::placeholder{color:var(--txt3);}
     <div class="mBtns">
       <button class="btn" onclick="closeModal('editLotModal')">취소</button>
       <button class="btn btnP" onclick="execEditLot()">수정 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 등급 일괄변경 모달 -->
+<div class="overlay" id="editGradeModal" onclick="if(event.target===this)closeModal('editGradeModal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="mTitle">등급 변경</div>
+    <div style="background:var(--bg3);border-radius:10px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:var(--txt2);" id="egInfo"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <button class="eg-grade-btn" data-grade="S" onclick="selectEgGrade('S')" style="padding:16px;border-radius:14px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <span style="width:28px;height:28px;border-radius:7px;background:var(--purple-dim);color:var(--purple-txt);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">S</span>
+        <span style="font-size:10px;color:var(--txt2);">매주 30만원</span>
+      </button>
+      <button class="eg-grade-btn" data-grade="A" onclick="selectEgGrade('A')" style="padding:16px;border-radius:14px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <span style="width:28px;height:28px;border-radius:7px;background:var(--green-dim);color:var(--green-txt);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">A</span>
+        <span style="font-size:10px;color:var(--txt2);">매월 50만원</span>
+      </button>
+      <button class="eg-grade-btn" data-grade="B" onclick="selectEgGrade('B')" style="padding:16px;border-radius:14px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <span style="width:28px;height:28px;border-radius:7px;background:var(--amber-dim);color:var(--amber-txt);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">B</span>
+        <span style="font-size:10px;color:var(--txt2);">매월 30만원</span>
+      </button>
+      <button class="eg-grade-btn" data-grade="F" onclick="selectEgGrade('F')" style="padding:16px;border-radius:14px;border:1.5px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <span style="width:28px;height:28px;border-radius:7px;background:var(--red-dim);color:var(--red-txt);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">F</span>
+        <span style="font-size:10px;color:var(--txt2);">즉시 전량매도</span>
+      </button>
+    </div>
+    <div style="font-size:11px;color:var(--amber);margin-bottom:14px;">⚠️ 동일 종목명의 모든 계좌 등급이 함께 변경됩니다</div>
+    <div class="mBtns">
+      <button class="btn" onclick="closeModal('editGradeModal')">취소</button>
+      <button class="btn btnP" onclick="execEditGrade()">변경 저장</button>
     </div>
   </div>
 </div>
@@ -533,6 +646,8 @@ let gFilter='all',acctFilter='all',alertFilter='all',alertTypeFilter='all';
 let histYear=null,profitYear=null;
 let activePriceSid=null,activeSellKey=null,activeDelKey=null;
 let usdKrw=1380,fxSource='manual';
+// 계좌별 현금 (원화)
+let cashMap={normal:0,overseas:0,isa:0,irp:0,pension:0};
 
 const AL={normal:'일반',overseas:'해외',isa:'ISA',irp:'IRP',pension:'연금'};
 const AD={all:'d-all',normal:'d-normal',overseas:'d-overseas',isa:'d-isa',irp:'d-irp',pension:'d-pension'};
@@ -743,6 +858,9 @@ async function save(){
     if(tRows.length) await sbFetch('trades?on_conflict=id','POST',tRows);
     // ids 저장
     await sbFetch('settings?on_conflict=key','POST',[{key:'ids',value:JSON.stringify({nextSid,nextTid,nextLid})}]);
+    // 현금 저장
+    await sbFetch('settings?on_conflict=key','POST',[{key:'cashMap',value:JSON.stringify(cashMap)}]);
+    localStorage.setItem('pt_cashMap',JSON.stringify(cashMap));
     document.getElementById('lastUp').textContent='저장됨 '+today();
     localStorage.setItem('pt_lastup',today());
   }catch(e){
@@ -778,6 +896,9 @@ async function load(){
     }
     const idsRow=Array.isArray(sets)?sets.find(x=>x.key==='ids'):null;
     const orderRow=Array.isArray(sets)?sets.find(x=>x.key==='acctOrder'):null;
+    const cashRow=Array.isArray(sets)?sets.find(x=>x.key==='cashMap'):null;
+    if(cashRow) cashMap=JSON.parse(cashRow.value);
+    else{ const lc=localStorage.getItem('pt_cashMap'); if(lc) cashMap=JSON.parse(lc); }
     if(orderRow) acctOrder=JSON.parse(orderRow.value);
     else{ const lo=localStorage.getItem('pt_acctOrder'); if(lo) acctOrder=JSON.parse(lo); }
     if(idsRow){const o=JSON.parse(idsRow.value);nextSid=o.nextSid;nextTid=o.nextTid;nextLid=o.nextLid;}
@@ -789,6 +910,7 @@ async function load(){
     }
     const lu=localStorage.getItem('pt_lastup');
     document.getElementById('lastUp').textContent=lu?'저장: '+lu:'저장 없음';
+    mergeStocks();
   }catch(e){
     console.error('로드 실패',e);
     document.getElementById('lastUp').textContent='오프라인 모드';
@@ -800,11 +922,32 @@ async function load(){
       if(s){stocks=JSON.parse(s);stocks.forEach(s=>{if(!s.acct)s.acct='normal';});}
       if(t){trades=JSON.parse(t);trades.forEach(t=>{if(!t.acct)t.acct='normal';});}
       if(i){const o=JSON.parse(i);nextSid=o.nextSid;nextTid=o.nextTid;nextLid=o.nextLid;}
+      mergeStocks();
     }catch(e2){}
   }
 }
 
 // ── 계산 ────────────────────────────────────────────────
+// 같은 name+acct 조합의 stock을 하나로 병합 (lots 합치기, trades sid 재연결)
+function mergeStocks(){
+  const merged=[];
+  const map={}; // key: name+acct → stock
+  stocks.forEach(s=>{
+    const key=s.name+'||'+s.acct;
+    if(!map[key]){
+      map[key]={...s,lots:[...s.lots]};
+      merged.push(map[key]);
+    } else {
+      // lots 합치기 (중복 lot id 방지)
+      s.lots.forEach(l=>{
+        if(!map[key].lots.find(x=>x.id===l.id)) map[key].lots.push(l);
+      });
+      // 병합된 stock의 id로 trades sid 재연결
+      trades.forEach(t=>{if(t.sid===s.id) t.sid=map[key].id;});
+    }
+  });
+  stocks=merged;
+}
 function sAvg(s){if(!s.lots.length)return 0;const t=s.lots.reduce((a,l)=>a+l.price*l.qty,0),q=s.lots.reduce((a,l)=>a+l.qty,0);return q?t/q:0;}
 function sQty(s){return s.lots.reduce((a,l)=>a+l.qty,0);}
 function sPct(s){const a=sAvg(s);return a?(s.curPrice-a)/a*100:0;}
@@ -917,11 +1060,15 @@ function renderSummary(){
   const tPnl=held.reduce((a,s)=>a+sPnlKrw(s),0);
   const tBuy=held.reduce((a,s)=>a+sBuyKrw(s),0);
   const tVal=held.reduce((a,s)=>a+sValKrw(s),0);
+  const tCash=acctFilter==='all'
+    ? acctOrder.reduce((a,k)=>a+cashKrw(k),0)
+    : cashKrw(acctFilter);
+  const tTotal=tVal+tCash;
   const tR=tBuy?tPnl/tBuy*100:0;
   const alts=buildAlerts();
   // 히어로
-  document.getElementById('heroVal').textContent=fW(tVal);
-  document.getElementById('heroSub').innerHTML=`<span class="${tPnl>=0?'up':'down'}" style="font-weight:700;">${fP(tR)}</span> <span style="color:var(--txt2);font-size:12px;">${fW(tPnl)}</span>`;
+  document.getElementById('heroVal').textContent=fW(tTotal);
+  document.getElementById('heroSub').innerHTML=`<span class="${tPnl>=0?'up':'down'}" style="font-weight:700;">${fP(tR)}</span> <span style="color:var(--txt2);font-size:12px;">${fW(tPnl)}</span>${tCash>0?` <span style="color:var(--txt3);font-size:11px;">현금 ${fW(tCash)}</span>`:''}`;
   // 요약 그리드
   document.getElementById('sumGrid').innerHTML=`
     <div class="mc"><div class="mc-l">평가손익</div><div class="mc-v ${tPnl>=0?'up':'down'}">${fW(tPnl)}</div></div>
@@ -931,16 +1078,18 @@ function renderSummary(){
   if(acctFilter!=='all'){ce.innerHTML='';return;}
   const cards=acctOrder.map(ac=>{
     const as=stocks.filter(s=>sQty(s)>0&&s.acct===ac);
-    if(!as.length)return '';
+    const acCash=cashKrw(ac);
+    if(!as.length&&!acCash)return '';
     const aVal=as.reduce((a,s)=>a+sValKrw(s),0);
     const aPnl=as.reduce((a,s)=>a+sPnlKrw(s),0);
     const aBuy=as.reduce((a,s)=>a+sBuyKrw(s),0);
     const aR=aBuy?aPnl/aBuy*100:0;
     const aValUsd=ac==='overseas'?as.reduce((a,s)=>a+s.curPrice*sQty(s),0):null;
+    const cashUsdVal=ac==='overseas'&&cashMap[ac]? (typeof cashMap[ac]==='object'? cashMap[ac].usd : 0) : 0;
     return `<div class="acct-card">
       <div class="acct-card-hd"><span class="a-dot ${AD[ac]}" style="width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;"></span>${AL[ac]}</div>
-      <div class="acct-card-val">${fW(aVal)}</div>
-      ${ac==='overseas'?`<div class="acct-card-sub">${fU(aValUsd)}</div>`:''}
+      <div class="acct-card-val">${fW(aVal+acCash)}</div>
+      ${ac==='overseas'&&aValUsd?`<div class="acct-card-sub">${fU(aValUsd)}</div>`:''}
       <div class="acct-card-row">
         <span class="acct-card-key">손익</span>
         <span class="acct-card-pnl ${aPnl>=0?'up':'down'}">${fW(aPnl)}</span>
@@ -949,6 +1098,10 @@ function renderSummary(){
         <span class="acct-card-key">수익률</span>
         <span class="acct-card-pnl ${aR>=0?'up':'down'}">${fP(aR)}</span>
       </div>
+      ${acCash>0?`<div class="acct-card-row">
+        <span class="acct-card-key">현금</span>
+        <span class="acct-card-pnl" style="color:var(--txt2);">${ac==='overseas'&&cashUsdVal? '$'+cashUsdVal.toFixed(2)+' ('+fW(acCash)+')' : fW(acCash)}</span>
+      </div>`:''}
     </div>`;
   }).filter(Boolean);
   ce.innerHTML=cards.length?'<div class="acct-cards">'+cards.join('')+'</div>':'';
@@ -1007,7 +1160,10 @@ function renderPortfolio(){
           <span class="stock-name">${rep.name}</span>
           <span class="badge b${sg.charAt(0).toUpperCase()+sg.slice(1)}">${SL[sg]}</span>
         </div>
-        <button class="btn btnSm" style="color:var(--blue);border-color:var(--blue);font-size:11px;" onclick="openPrice(${rep.id})">가격 수정</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btnSm" style="color:var(--red);border-color:var(--red);font-size:11px;" onclick="openBulkSell(${rep.id},acctFilter)">전량매도</button>
+          <button class="btn btnSm" style="color:var(--blue);border-color:var(--blue);font-size:11px;" onclick="openPrice(${rep.id})">가격 수정</button>
+        </div>
       </div>
       <div class="stock-info-row" style="margin-bottom:6px;">
         <div class="stock-price-block">
@@ -1120,6 +1276,7 @@ function histRowsHtml(filt){
             ${amtSub}
             ${t.type==='sell'&&pnlStr?`<div class="hist-pnl ${t.pnl>=0?'up':'down'}">${t.pnl>=0?'수익':'손실'}: ${pnlStr}</div>`:''}
           </div>
+          <button class="hist-del" onclick="openEditTrade(${t.id})">수정</button>
           <button class="hist-del" onclick="openDelTrade(${t.id})">삭제</button>
         </div>
       </div>`;
@@ -1184,6 +1341,7 @@ function renderProfit(){
 }
 
 function renderManage(){
+  renderCashInputs();
   const el=document.getElementById('manageBody');
   const src=acctFilter==='all'?stocks:stocks.filter(s=>s.acct===acctFilter);
   if(!src.length){el.innerHTML='<div class="empty">등록된 종목이 없습니다</div>';return;}
@@ -1228,6 +1386,7 @@ function renderManage(){
         </div>
         <div style="display:flex;gap:5px;">
           <button class="btn btnSm" style="color:var(--amber);border-color:var(--amber);font-size:10px;" onclick="openEditName('${rep.name.replace(/'/g,"\\'")}')">이름</button>
+          <button class="btn btnSm" style="color:var(--purple-txt);border-color:var(--purple-txt);font-size:10px;" onclick="openEditGrade('${rep.name.replace(/'/g,"\\'")}')">등급</button>
           <button class="btn btnSm" style="color:var(--blue);border-color:var(--blue);" onclick="openPrice(${rep.id})">가격</button>
         </div>
       </div>
@@ -1321,11 +1480,17 @@ function openPrice(sid){
   activePriceSid=sid;
   const s=stocks.find(x=>x.id===sid);
   const ov=isOvs(s);
-  document.getElementById('pmTitle').textContent=s.name+' — 현재가/이평선 수정';
+  document.getElementById('pmTitle').textContent=s.name+' — 현재가/이평선/등급 수정';
   document.getElementById('pmPriceLbl').textContent=ov?'현재가 ($)':'현재가 (₩)';
   document.getElementById('pmPrice').value=s.curPrice;
   document.getElementById('pmWma').value=s.weekMA;
   document.getElementById('pmMma').value=s.monthMA;
+  // 등급 버튼 초기화
+  document.querySelectorAll('.pm-grade-btn').forEach(btn=>{
+    const isSelected=btn.dataset.grade===s.grade;
+    btn.style.borderColor=isSelected?'var(--blue)':'var(--border2)';
+    btn.style.opacity=isSelected?'1':'0.55';
+  });
   const hint=document.getElementById('pmKrwHint');
   if(ov){
     hint.style.display='block';
@@ -1344,17 +1509,27 @@ function openPrice(sid){
   }
   document.getElementById('priceModal').classList.add('open');
 }
+function selectPmGrade(grade){
+  document.querySelectorAll('.pm-grade-btn').forEach(btn=>{
+    const isSelected=btn.dataset.grade===grade;
+    btn.style.borderColor=isSelected?'var(--blue)':'var(--border2)';
+    btn.style.opacity=isSelected?'1':'0.55';
+  });
+}
 function savePriceModal(){
   const s=stocks.find(x=>x.id===activePriceSid);
   const p=parseFloat(document.getElementById('pmPrice').value);
   const wma=document.getElementById('pmWma').value;
   const mma=document.getElementById('pmMma').value;
-  // 동일 종목명 전체에 현재가 + 이평선 모두 동기화
+  const selectedGradeBtn=document.querySelector('.pm-grade-btn[style*="var(--blue)"]');
+  const newGrade=selectedGradeBtn?selectedGradeBtn.dataset.grade:s.grade;
+  // 동일 종목명 전체에 현재가 + 이평선 + 등급 동기화
   const sameNameStocks=stocks.filter(x=>x.name===s.name);
   sameNameStocks.forEach(x=>{
     if(!isNaN(p)&&p>0) x.curPrice=p;
     x.weekMA=wma;
     x.monthMA=mma;
+    x.grade=newGrade;
   });
   closeModal('priceModal');save();renderAll();
 }
@@ -1492,7 +1667,83 @@ function renderAcctTabs(){
       <span class="a-dot ${AD[t.key]||'d-all'}"></span>${t.label}
     </button>`).join('');
 }
-function renderAll(){renderAcctTabs();renderPortfolio();renderAlerts();renderManage();renderHistory();renderProfit();}
+// cashMap 구조: { normal: 원화, overseas: {usd, krw(환산)}, isa: 원화, ... }
+// 해외는 {usd, krw} 객체로 저장, 나머지는 숫자(원화)
+function cashKrw(k){
+  const v=cashMap[k];
+  if(!v) return 0;
+  if(k==='overseas') return typeof v==='object'? (v.krw||0) : toKrw(v); // 하위 호환
+  return typeof v==='number'? v : 0;
+}
+function cashUsd(k){
+  if(k!=='overseas') return 0;
+  const v=cashMap[k];
+  if(!v) return 0;
+  if(typeof v==='object') return v.usd||0;
+  return typeof v==='number'? v : 0; // 구버전: 숫자면 달러로 간주
+}
+
+function renderCashInputs(){
+  const keys=acctOrder;
+  const totalKrw=keys.reduce((a,k)=>a+cashKrw(k),0);
+  document.getElementById('cashTotal').textContent='합계 '+fW(totalKrw);
+  document.getElementById('cashInputs').innerHTML=keys.map(k=>{
+    const isOvs=(k==='overseas');
+    const curUsd=cashUsd(k);
+    const curKrw=isOvs? curUsd : (cashMap[k]||0);
+    const krwHint=isOvs&&curUsd>0 ? `<div id="cashHint_${k}" style="font-size:10px;color:var(--txt3);margin-top:3px;padding-left:2px;">≈ ${fW(Math.round(toKrw(curUsd)))}</div>` : `<div id="cashHint_${k}" style="font-size:10px;color:var(--txt3);margin-top:3px;padding-left:2px;min-height:14px;"></div>`;
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:5px;width:62px;flex-shrink:0;">
+          <span class="a-dot ${AD[k]}" style="width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
+          <span style="font-size:12px;color:var(--txt2);">${AL[k]}</span>
+        </div>
+        <div style="position:relative;flex:1;">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--txt2);pointer-events:none;">${isOvs?'$':'₩'}</span>
+          <input type="number" id="cash_${k}" value="${curUsd||curKrw||''}" min="0" step="any"
+            placeholder="${isOvs?'0.00':'0'}"
+            style="padding-left:24px;"
+            oninput="updateCashHint('${k}')"/>
+        </div>
+      </div>
+      ${krwHint}
+    </div>`;
+  }).join('');
+}
+
+function updateCashHint(k){
+  const v=parseFloat(document.getElementById('cash_'+k)?.value)||0;
+  const hint=document.getElementById('cashHint_'+k);
+  if(!hint) return;
+  if(k==='overseas'){
+    hint.textContent=v>0?'≈ '+fW(Math.round(toKrw(v))):'';
+  }
+  // 합계 업데이트
+  const total=acctOrder.reduce((a,key)=>{
+    const val=parseFloat(document.getElementById('cash_'+key)?.value)||0;
+    return a+(key==='overseas'? toKrw(val) : val);
+  },0);
+  document.getElementById('cashTotal').textContent='합계 '+fW(Math.round(total));
+}
+
+async function saveCash(){
+  const btn=(typeof event!=='undefined'&&event&&event.target)?event.target:null;
+  acctOrder.forEach(k=>{
+    const v=parseFloat(document.getElementById('cash_'+k)?.value)||0;
+    if(k==='overseas'){
+      cashMap[k]={usd:v, krw:Math.round(toKrw(v))};
+    } else {
+      cashMap[k]=v;
+    }
+  });
+  await save();
+  renderAll();
+  if(btn){
+    const orig=btn.textContent;
+    btn.textContent='✓ 저장됨';
+    setTimeout(()=>{btn.textContent=orig;},1500);
+  }
+}
 
 // ── 차트 내보내기 ────────────────────────────────────────
 function exportChart(){
@@ -1508,13 +1759,14 @@ function exportChart(){
     valueKrw:Math.round(sValKrw(s)),
     pnlKrw:Math.round(sPnlKrw(s))
   }));
-  const payload=JSON.stringify({usdKrw,stocks:data});
+  const payload=JSON.stringify({usdKrw,stocks:data,cashMap});
+  // localStorage에 저장 → chart.html 자동 연동 시 항상 최신 데이터 사용
+  localStorage.setItem('pt_chartData',payload);
   navigator.clipboard.writeText(payload).then(()=>{
     const el=document.getElementById('exportMsg');
     el.textContent='✓ '+held.length+'개 종목 복사 완료! 차트 앱에 붙여넣기 하세요.';
     setTimeout(()=>{el.textContent='';},4000);
   }).catch(()=>{
-    // clipboard API 실패 시 textarea로 fallback
     const ta=document.createElement('textarea');
     ta.value=payload;ta.style.position='fixed';ta.style.opacity='0';
     document.body.appendChild(ta);ta.select();document.execCommand('copy');
@@ -1560,6 +1812,232 @@ async function saveOrder(){
   renderAcctTabs();
   toggleOrderPanel();
 }
+
+// ── 등급 일괄변경 ────────────────────────────────────────
+let activeEditGradeName=null, selectedEgGrade=null;
+function openEditGrade(name){
+  activeEditGradeName=name;
+  selectedEgGrade=null;
+  const sameStocks=stocks.filter(x=>x.name===name);
+  const curGrade=sameStocks[0]?.grade||'B';
+  document.getElementById('egInfo').textContent=
+    `"${name}" · ${sameStocks.map(x=>AL[x.acct]).join(', ')} · 현재 등급: ${curGrade}`;
+  // 버튼 초기 상태 리셋
+  document.querySelectorAll('.eg-grade-btn').forEach(btn=>{
+    btn.style.borderColor='var(--border2)';
+    btn.style.opacity='1';
+  });
+  // 현재 등급 버튼 하이라이트
+  const curBtn=document.querySelector(`.eg-grade-btn[data-grade="${curGrade}"]`);
+  if(curBtn) curBtn.style.borderColor='var(--blue)';
+  selectedEgGrade=curGrade;
+  document.getElementById('editGradeModal').classList.add('open');
+}
+function selectEgGrade(grade){
+  selectedEgGrade=grade;
+  document.querySelectorAll('.eg-grade-btn').forEach(btn=>{
+    const isSelected=btn.dataset.grade===grade;
+    btn.style.borderColor=isSelected?'var(--blue)':'var(--border2)';
+    btn.style.opacity=isSelected?'1':'0.6';
+  });
+}
+async function execEditGrade(){
+  if(!selectedEgGrade||!activeEditGradeName){closeModal('editGradeModal');return;}
+  stocks.forEach(s=>{
+    if(s.name===activeEditGradeName) s.grade=selectedEgGrade;
+  });
+  closeModal('editGradeModal');
+  await save();
+  renderAll();
+}
+
+// ── 매매 이력 수정 ────────────────────────────────────────
+let activeEditTradeId=null;
+function openEditTrade(tid){
+  activeEditTradeId=tid;
+  const t=trades.find(x=>x.id===tid);
+  if(!t) return;
+  const ov=t.acct==='overseas';
+  const isSell=t.type==='sell';
+  document.getElementById('etTitle').textContent=(isSell?'매도':'매수')+' 이력 수정';
+  document.getElementById('etInfo').textContent=`${t.sName} · ${AL[t.acct]} · ${t.date} · ${isSell?'매도':'매수'}`;
+  document.getElementById('etPriceLbl').textContent=`단가 (${ov?'$':'₩'})`;
+  document.getElementById('etAcct').value=t.acct;
+  document.getElementById('etPrice').value=t.price;
+  document.getElementById('etQty').value=t.qty;
+  document.getElementById('etDate').value=t.date;
+  const disp=document.getElementById('etDate-display');
+  if(disp){disp.textContent=fDate(t.date);disp.classList.remove('placeholder');}
+  document.getElementById('etMemo').value=t.memo||'';
+  // 매도일 경우 손익 필드 표시
+  const pnlRow=document.getElementById('etPnlRow');
+  const pnlInp=document.getElementById('etPnl');
+  if(isSell){
+    pnlRow.style.display='';
+    pnlInp.style.display='';
+    pnlInp.placeholder=`손익 (${ov?'$':'₩'})`;
+    pnlInp.value=t.pnl!=null?t.pnl:'';
+  } else {
+    pnlRow.style.display='none';
+    pnlInp.style.display='none';
+  }
+  document.getElementById('editTradeModal').classList.add('open');
+}
+function onEtAcctChange(){
+  const ov=document.getElementById('etAcct').value==='overseas';
+  document.getElementById('etPriceLbl').textContent=`단가 (${ov?'$':'₩'})`;
+  const pnlInp=document.getElementById('etPnl');
+  if(pnlInp.style.display!=='none') pnlInp.placeholder=`손익 (${ov?'$':'₩'})`;
+}
+async function execEditTrade(){
+  const t=trades.find(x=>x.id===activeEditTradeId);
+  if(!t){closeModal('editTradeModal');return;}
+  const price=parseFloat(document.getElementById('etPrice').value);
+  const qty=parseFloat(document.getElementById('etQty').value);
+  const date=document.getElementById('etDate').value;
+  const memo=document.getElementById('etMemo').value.trim();
+  const newAcct=document.getElementById('etAcct').value;
+  if(isNaN(price)||price<=0){alert('단가를 올바르게 입력해주세요.');return;}
+  if(isNaN(qty)||qty<=0){alert('수량을 올바르게 입력해주세요.');return;}
+  if(!date){alert('날짜를 선택해주세요.');return;}
+
+  // trade 기본 필드 수정
+  t.price=price; t.qty=qty; t.date=date; t.memo=memo; t.acct=newAcct;
+
+  // 매도 손익 수정
+  if(t.type==='sell'){
+    const pnlVal=document.getElementById('etPnl').value;
+    if(pnlVal!=='') t.pnl=parseFloat(pnlVal)||0;
+  }
+
+  // 매수 이력: lot을 올바른 계좌의 stock으로 이동
+  if(t.type==='buy'){
+    const srcStock=stocks.find(x=>x.id===t.sid);
+    if(srcStock){
+      // 해당 lot 찾기 (id 기준 우선, 없으면 price+date 매칭)
+      const lotIdx=srcStock.lots.findIndex(x=>
+        (x.id!=null&&x.id===t.lid) ||
+        (x.price===t.price&&x.date===t.date&&x.qty===t.qty)
+      );
+      if(lotIdx>-1){
+        const lot=srcStock.lots[lotIdx];
+        // lot 값 업데이트
+        lot.price=price; lot.qty=qty; lot.date=date; lot.memo=memo;
+
+        if(newAcct!==srcStock.acct){
+          // 계좌가 바뀐 경우: lot을 다른 계좌의 동일 종목 stock으로 이동
+          let destStock=stocks.find(x=>x.name===srcStock.name&&x.acct===newAcct);
+          if(!destStock){
+            // 대상 계좌에 stock이 없으면 새로 생성
+            destStock={
+              id:nextSid++,
+              name:srcStock.name,
+              acct:newAcct,
+              grade:srcStock.grade,
+              curPrice:srcStock.curPrice,
+              weekMA:srcStock.weekMA,
+              monthMA:srcStock.monthMA,
+              lots:[]
+            };
+            stocks.push(destStock);
+          }
+          // lot 이동
+          srcStock.lots.splice(lotIdx,1);
+          destStock.lots.push(lot);
+          // trade의 sid도 대상 stock으로 변경
+          t.sid=destStock.id;
+          // 원본 stock lot이 0개면 제거
+          if(!srcStock.lots.length){
+            stocks=stocks.filter(x=>x.id!==srcStock.id);
+          }
+        }
+      }
+    }
+  }
+
+  closeModal('editTradeModal');
+  await save();
+  renderAll();
+}
+
+// ── 일괄 매도 ────────────────────────────────────────────
+let activeBulkSid=null, activeBulkAcct=null;
+function openBulkSell(sid, acct){
+  const rep=stocks.find(x=>x.id===sid);
+  if(!rep) return;
+  activeBulkSid=sid;
+  activeBulkAcct=(acct&&acct!=='all')?acct:null;
+  // 계좌 필터가 있으면 해당 계좌만, 없으면 같은 종목 전체
+  const grp=stocks.filter(x=>x.name===rep.name&&sQty(x)>0&&(!activeBulkAcct||x.acct===activeBulkAcct));
+  const totalQty=grp.reduce((a,s)=>a+sQty(s),0);
+  const ov=isOvs(rep);
+  const acctLabel=activeBulkAcct?AL[activeBulkAcct]:'전 계좌';
+  document.getElementById('bsTitle').textContent=rep.name+' 전량 매도';
+  document.getElementById('bsInfo').textContent=`${acctLabel} · 총 ${fN(totalQty)}주 · 현재가 ${fPriceRaw(rep.curPrice,rep.acct)}`;
+  document.getElementById('bsPriceLbl').textContent=ov?'매도가 ($)':'매도가 (₩)';
+  document.getElementById('bsPrice').value=rep.curPrice;
+  document.getElementById('bsDate').value=today();
+  const disp=document.getElementById('bsDate-display');
+  if(disp){disp.textContent=fDate(today());disp.classList.remove('placeholder');}
+  document.getElementById('bsMemo').value='';
+  const upd=()=>{
+    const sp=parseFloat(document.getElementById('bsPrice').value)||0;
+    const totalPnl=grp.reduce((a,s)=>a+s.lots.reduce((b,l)=>{
+      const qty=l.qty||0; const pnl=(sp-l.price)*qty;
+      return b+(ov?toKrw(pnl):pnl);
+    },0),0);
+    const c=totalPnl>=0?'var(--green)':'var(--red)';
+    document.getElementById('bsPreview').innerHTML=`예상 수익: <span style="color:${c};font-weight:700;">${fW(Math.round(totalPnl))}</span> / ${acctLabel} ${fN(totalQty)}주 전량`;
+  };
+  document.getElementById('bsPrice').oninput=upd;
+  upd();
+  document.getElementById('bulkSellModal').classList.add('open');
+}
+async function execBulkSell(){
+  const rep=stocks.find(x=>x.id===activeBulkSid);
+  if(!rep) return;
+  const sp=parseFloat(document.getElementById('bsPrice').value);
+  const date=document.getElementById('bsDate').value||today();
+  const memo=document.getElementById('bsMemo').value.trim();
+  if(isNaN(sp)||sp<=0){alert('매도가를 입력해주세요.');return;}
+  const ov=isOvs(rep);
+  const grp=stocks.filter(x=>x.name===rep.name&&sQty(x)>0&&(!activeBulkAcct||x.acct===activeBulkAcct));
+  const removedSids=[];
+  grp.forEach(s=>{
+    s.lots.forEach(l=>{
+      if(l.qty<=0) return;
+      const pnl=(sp-l.price)*l.qty;
+      trades.push({id:nextTid++,sid:s.id,sName:s.name,acct:s.acct,grade:s.grade,type:'sell',date,price:sp,qty:l.qty,pnl:ov?toKrw(pnl):pnl,memo});
+    });
+    s.lots=[];
+    removedSids.push(s.id);
+  });
+  stocks=stocks.filter(x=>!removedSids.includes(x.id));
+  closeModal('bulkSellModal');
+  try{
+    for(const sid of removedSids) await sbFetch(`stocks?id=eq.${sid}`,'DELETE');
+  }catch(e){console.error('Supabase 일괄매도 삭제 실패',e);}
+  await save();
+  renderAll();
+}
+
+// ── 엔터키로 모달 저장 ───────────────────────────────────
+function addEnterKey(inputIds, handler){
+  inputIds.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener('keydown',e=>{if(e.key==='Enter')handler();});
+  });
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  // 가격 수정 모달
+  addEnterKey(['pmPrice'],savePriceModal);
+  // 매도 모달
+  addEnterKey(['smPrice','smQty','smMemo'],execSell);
+  // 이력 수정 모달
+  addEnterKey(['etPrice','etQty','etMemo','etPnl'],execEditTrade);
+  // 일괄매도 모달
+  addEnterKey(['bsPrice','bsMemo'],execBulkSell);
+});
 
 // ── 매매 이력 삭제 ───────────────────────────────────────
 let activeEditName=null;
@@ -1645,9 +2123,7 @@ async function execDelTrade(){
   renderAll();
 }
 
-function renderAll(){renderAcctTabs();renderPortfolio();renderAlerts();renderManage();renderHistory();renderProfit();}
-
-// ── 초기화 ──────────────────────────────────────────────
+function renderAll(){mergeStocks();renderAcctTabs();renderPortfolio();renderAlerts();renderManage();renderHistory();renderProfit();}
 (async()=>{
   loadFx();
   document.getElementById('mDate').value=today();
